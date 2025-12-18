@@ -17,10 +17,17 @@ pub fn create_routes(pool: DbPool) -> Router {
         .route("/api/auth/register", post(auth::register_handler))
         .route("/api/auth/login", post(auth::login_handler))
         .route("/api/articles", get(article::list_articles_handler))
+        .route("/api/articles/most-read", get(article::most_read_handler))
+        .route("/api/articles/featured", get(article::featured_handler))
+        .route("/api/articles/breaking", get(article::breaking_handler))
+        .route("/api/articles/videos", get(article::videos_handler))
+        .route("/api/articles/:slug/related", get(article::related_handler))
         .route("/api/articles/:slug", get(article::get_article_handler))
         .route("/api/articles/:slug/view", post(article::increment_views_handler))
+        .route("/api/articles/:slug/tags", get(tag::list_article_tags_handler))
         .route("/api/site-config", get(site_config::get_site_config_handler))
         .route("/api/tags", get(tag::list_tags_handler))
+        .route("/healthz", get(crate::handlers::health::health_handler))
         .nest_service("/uploads", ServeDir::new("uploads"));
 
     // 2. Rutas de Editores (Crear, Editar, Subir Foto) - Requieren Auth Básico
@@ -35,6 +42,7 @@ pub fn create_routes(pool: DbPool) -> Router {
         .route("/api/admin/articles/:id", delete(article::delete_article_handler))
         .route("/api/admin/site-config", put(site_config::update_site_config_handler))
         .route("/api/admin/tags", post(tag::create_tag_handler))
+        .route("/api/admin/articles/:id/tags", post(tag::set_article_tags_handler))
         .route_layer(middleware::from_fn(admin_middleware));
 
     // Fusionamos todo

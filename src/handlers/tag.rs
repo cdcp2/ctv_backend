@@ -1,5 +1,11 @@
 use axum::{extract::{Json, State}, http::StatusCode, response::IntoResponse};
 use crate::{db::DbPool, models::tag::{Tag, CreateTagSchema}};
+use serde::Deserialize;
+
+#[derive(Debug, Deserialize)]
+pub struct TagAssignment {
+    pub tag_ids: Vec<i32>,
+}
 
 // GET /api/tags (público)
 pub async fn list_tags_handler(State(pool): State<DbPool>) -> impl IntoResponse {
@@ -17,6 +23,84 @@ pub async fn list_tags_handler(State(pool): State<DbPool>) -> impl IntoResponse 
             (StatusCode::INTERNAL_SERVER_ERROR, "Error interno").into_response()
         }
     }
+}
+
+// GET /api/articles/:slug/tags
+pub async fn list_article_tags_handler(
+    axum::extract::Path(slug): axum::extract::Path<String>,
+    State(pool): State<DbPool>,
+) -> impl IntoResponse {
+    let result = sqlx::query_as!(
+        Tag,
+        r#"
+        SELECT t.id, t.name, t.slug
+        FROM tags t
+        JOIN article_tags at ON at.tag_id = t.id
+        JOIN articles a ON a.id = at.article_id
+        WHERE a.slug = $1
+        ORDER BY t.name ASC
+        "#,
+        slug
+    )
+    .fetch_all(&pool)
+    .await;
+
+    match result {
+        Ok(tags) => (StatusCode::OK, axum::Json(tags)).into_response(),
+        Err(e) => {
+            tracing::error!("Error listando tags de artículo: {:?}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "Error interno").into_response()
+        }
+    }
+}
+
+// POST /api/admin/articles/:id/tags (admin) - reemplaza set completo
+pub async fn set_article_tags_handler(
+    axum::extract::Path(article_id): axum::extract::Path<i64>,
+    State(pool): State<DbPool>,
+    Json(body): Json<TagAssignment>,
+) -> impl IntoResponse {
+    let mut tx = match pool.begin().await {
+        Ok(tx) => tx,
+        Err(e) => {
+            tracing::error!("Error iniciando transacción: {:?}", e);
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
+    };
+
+    // Limpiar tags existentes
+    if let Err(e) = sqlx::query!("DELETE FROM article_tags WHERE article_id = $1", article_id)
+        .execute(&mut *tx)
+        .await
+    {
+        tracing::error!("Error limpiando tags: {:?}", e);
+        let _ = tx.rollback().await;
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    }
+
+    // Insertar nuevos
+    for tag_id in body.tag_ids.iter() {
+        if let Err(e) = sqlx::query!(
+            "INSERT INTO article_tags (article_id, tag_id) VALUES ($1, $2) ON CONFLICT DO NOTHING",
+            article_id,
+            tag_id
+        )
+        .execute(&mut *tx)
+        .await
+        {
+            tracing::error!("Error insertando tag {}: {:?}", tag_id, e);
+            let _ = tx.rollback().await;
+            return StatusCode::BAD_REQUEST.into_response();
+        }
+    }
+
+    if let Err(e) = tx.commit().await {
+        tracing::error!("Error commit tags: {:?}", e);
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    }
+
+    tracing::info!("tags_set article_id={} tags={:?}", article_id, body.tag_ids);
+    StatusCode::NO_CONTENT.into_response()
 }
 
 // POST /api/admin/tags (admin)

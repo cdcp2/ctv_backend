@@ -7,6 +7,7 @@ use axum::{
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
 use uuid::Uuid;
+use tracing;
 use crate::{db::DbPool, models::article::{Article, CreateArticleSchema}, models::user::Claims};
 
 #[derive(Debug, Deserialize)]
@@ -30,6 +31,7 @@ pub struct FilterOptions {
     pub is_featured: Option<bool>,
     pub is_breaking: Option<bool>,
     pub has_video: Option<bool>,
+    pub tag_id: Option<i32>,
 }
 
 // GET /api/articles (Soporta ?category_id=1&search=texto)
@@ -44,6 +46,7 @@ pub async fn list_articles_handler(
         is_featured: None,
         is_breaking: None,
         has_video: None,
+        tag_id: None,
     }));
 
     let category_id = opts.category_id;
@@ -51,6 +54,7 @@ pub async fn list_articles_handler(
     let is_featured = opts.is_featured;
     let is_breaking = opts.is_breaking;
     let has_video = opts.has_video;
+    let tag_id = opts.tag_id;
 
     // --- LA SÚPER QUERY ---
     // Usamos lógica booleana dentro del SQL para filtrar dinámicamente.
@@ -91,6 +95,10 @@ pub async fn list_articles_handler(
                 ($5 = TRUE AND video_embed_url IS NOT NULL) OR
                 ($5 = FALSE AND video_embed_url IS NULL)
             )
+            AND
+            ($6::int IS NULL OR EXISTS (
+                SELECT 1 FROM article_tags at WHERE at.article_id = articles.id AND at.tag_id = $6
+            ))
         ORDER BY created_at DESC 
         LIMIT 20
         "#,
@@ -98,7 +106,8 @@ pub async fn list_articles_handler(
         search_term,
         is_featured,
         is_breaking,
-        has_video
+        has_video,
+        tag_id
     )
     .fetch_all(&pool)
     .await;
@@ -108,6 +117,177 @@ pub async fn list_articles_handler(
         Err(e) => {
             tracing::error!("Error buscando noticias: {:?}", e);
             (StatusCode::INTERNAL_SERVER_ERROR, "Error de base de datos").into_response()
+        }
+    }
+}
+
+// GET /api/articles/most-read
+pub async fn most_read_handler(
+    State(pool): State<DbPool>,
+) -> impl IntoResponse {
+    let result = sqlx::query_as!(
+        Article,
+        r#"
+        SELECT 
+            id, title, slug, content, excerpt, main_image_url, video_embed_url,
+            author_id, category_id, status as "status!: String", is_featured as "is_featured!: bool",
+            is_breaking as "is_breaking!: bool", views_count as "views_count!: i64",
+            published_at, created_at, updated_at
+        FROM articles
+        ORDER BY views_count DESC
+        LIMIT 10
+        "#
+    )
+    .fetch_all(&pool)
+    .await;
+
+    match result {
+        Ok(rows) => (StatusCode::OK, Json(rows)).into_response(),
+        Err(e) => {
+            tracing::error!("Error consultando más leídas: {:?}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "Error interno").into_response()
+        }
+    }
+}
+
+pub async fn featured_handler(
+    State(pool): State<DbPool>,
+) -> impl IntoResponse {
+    let result = sqlx::query_as!(
+        Article,
+        r#"
+        SELECT 
+            id, title, slug, content, excerpt, main_image_url, video_embed_url,
+            author_id, category_id, status as "status!: String", is_featured as "is_featured!: bool",
+            is_breaking as "is_breaking!: bool", views_count as "views_count!: i64",
+            published_at, created_at, updated_at
+        FROM articles
+        WHERE is_featured = TRUE
+        ORDER BY published_at DESC NULLS LAST, created_at DESC
+        LIMIT 10
+        "#
+    )
+    .fetch_all(&pool)
+    .await;
+
+    match result {
+        Ok(rows) => (StatusCode::OK, Json(rows)).into_response(),
+        Err(e) => {
+            tracing::error!("Error consultando destacadas: {:?}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "Error interno").into_response()
+        }
+    }
+}
+
+pub async fn breaking_handler(
+    State(pool): State<DbPool>,
+) -> impl IntoResponse {
+    let result = sqlx::query_as!(
+        Article,
+        r#"
+        SELECT 
+            id, title, slug, content, excerpt, main_image_url, video_embed_url,
+            author_id, category_id, status as "status!: String", is_featured as "is_featured!: bool",
+            is_breaking as "is_breaking!: bool", views_count as "views_count!: i64",
+            published_at, created_at, updated_at
+        FROM articles
+        WHERE is_breaking = TRUE
+        ORDER BY published_at DESC NULLS LAST, updated_at DESC
+        LIMIT 10
+        "#
+    )
+    .fetch_all(&pool)
+    .await;
+
+    match result {
+        Ok(rows) => (StatusCode::OK, Json(rows)).into_response(),
+        Err(e) => {
+            tracing::error!("Error consultando breaking: {:?}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "Error interno").into_response()
+        }
+    }
+}
+
+pub async fn videos_handler(
+    State(pool): State<DbPool>,
+) -> impl IntoResponse {
+    let result = sqlx::query_as!(
+        Article,
+        r#"
+        SELECT 
+            id, title, slug, content, excerpt, main_image_url, video_embed_url,
+            author_id, category_id, status as "status!: String", is_featured as "is_featured!: bool",
+            is_breaking as "is_breaking!: bool", views_count as "views_count!: i64",
+            published_at, created_at, updated_at
+        FROM articles
+        WHERE video_embed_url IS NOT NULL
+        ORDER BY published_at DESC NULLS LAST, created_at DESC
+        LIMIT 10
+        "#
+    )
+    .fetch_all(&pool)
+    .await;
+
+    match result {
+        Ok(rows) => (StatusCode::OK, Json(rows)).into_response(),
+        Err(e) => {
+            tracing::error!("Error consultando videos: {:?}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "Error interno").into_response()
+        }
+    }
+}
+
+pub async fn related_handler(
+    Path(slug): Path<String>,
+    State(pool): State<DbPool>,
+) -> impl IntoResponse {
+    // Obtener artículo base
+    let base = sqlx::query!(
+        r#"SELECT id, category_id FROM articles WHERE slug = $1"#,
+        slug
+    )
+    .fetch_optional(&pool)
+    .await
+    .unwrap_or(None);
+
+    let base = match base {
+        Some(row) => row,
+        None => return (StatusCode::NOT_FOUND, "Noticia no encontrada").into_response(),
+    };
+
+    // Relacionados por categoría o tags compartidos
+    let result = sqlx::query_as!(
+        Article,
+        r#"
+        SELECT 
+            a.id, a.title, a.slug, a.content, a.excerpt, a.main_image_url, a.video_embed_url,
+            a.author_id, a.category_id, a.status as "status!: String", a.is_featured as "is_featured!: bool",
+            a.is_breaking as "is_breaking!: bool", a.views_count as "views_count!: i64",
+            a.published_at, a.created_at, a.updated_at
+        FROM articles a
+        WHERE a.id <> $1
+          AND (
+              (a.category_id IS NOT NULL AND a.category_id = $2)
+              OR EXISTS (
+                  SELECT 1 FROM article_tags at1
+                  WHERE at1.article_id = a.id
+                    AND at1.tag_id IN (SELECT tag_id FROM article_tags WHERE article_id = $1)
+              )
+          )
+        ORDER BY a.published_at DESC NULLS LAST, a.created_at DESC
+        LIMIT 5
+        "#,
+        base.id,
+        base.category_id
+    )
+    .fetch_all(&pool)
+    .await;
+
+    match result {
+        Ok(rows) => (StatusCode::OK, Json(rows)).into_response(),
+        Err(e) => {
+            tracing::error!("Error consultando relacionados: {:?}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "Error interno").into_response()
         }
     }
 }
@@ -195,7 +375,10 @@ pub async fn create_article_handler(
     .await;
 
     match query_result {
-        Ok(article) => (StatusCode::CREATED, Json(article)).into_response(),
+        Ok(article) => {
+            tracing::info!("article_created id={} author_id={}", article.id, claims.user_id);
+            (StatusCode::CREATED, Json(article)).into_response()
+        }
         Err(e) => {
             tracing::error!("Error al crear noticia: {:?}", e);
             (StatusCode::BAD_REQUEST, "No se pudo crear la noticia").into_response()
@@ -219,6 +402,7 @@ pub async fn delete_article_handler(
             if res.rows_affected() == 0 {
                 (StatusCode::NOT_FOUND, "Noticia no encontrada").into_response()
             } else {
+                tracing::info!("article_deleted id={}", id);
                 (StatusCode::OK, "Noticia eliminada correctamente").into_response()
             }
         }
@@ -313,7 +497,10 @@ pub async fn update_article_handler(
     .await;
 
     match result {
-        Ok(updated_article) => (StatusCode::OK, Json(updated_article)).into_response(),
+        Ok(updated_article) => {
+            tracing::info!("article_updated id={} by_user={}", updated_article.id, claims.user_id);
+            (StatusCode::OK, Json(updated_article)).into_response()
+        }
         Err(e) => {
             tracing::error!("Error actualizando noticia: {:?}", e);
             (StatusCode::INTERNAL_SERVER_ERROR, "Error al actualizar").into_response()

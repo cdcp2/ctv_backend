@@ -4,3 +4,4 @@ pub mod auth;
 pub mod upload;
 pub mod site_config;
 pub mod tag;
+pub mod health;
