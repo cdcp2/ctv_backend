@@ -41,3 +41,7 @@ Verifica login admin, creación de editores, upload, creación de noticia con vi
 ## Observabilidad
 - Logs con `tracing` (creación/edición/borrado de artículos, asignación de tags).
 - Healthcheck en `/healthz`.
+
+## TODO
+- Endpoints derivados: related, featured/breaking prefiltrados, filtros por tag y pivot tags<->articles.
+- Observabilidad extra (metrics/logs/auditoría más detallados).

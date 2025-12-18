@@ -1,5 +1,5 @@
 use axum::{
-    extract::{Json, Path, Query, State}, // --- NUEVO: Agregamos 'Path' para leer IDs de la URL
+    extract::{Json, Path, Query, State},
     Extension,
     http::StatusCode,
     response::IntoResponse,
@@ -56,7 +56,6 @@ pub async fn list_articles_handler(
     let has_video = opts.has_video;
     let tag_id = opts.tag_id;
 
-    // --- LA SÚPER QUERY ---
     // Usamos lógica booleana dentro del SQL para filtrar dinámicamente.
     // ($1::int IS NULL OR category_id = $1): Si no envían categoría, ignora el filtro.
     // ILIKE: Búsqueda insensible a mayúsculas.
