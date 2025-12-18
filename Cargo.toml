@@ -1,0 +1,44 @@
+[package]
+name = "ctv_backend"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+# 1. El Framework Web (El más rápido y ergonómico actual)
+axum = { version = "0.7", features = ["multipart"] }
+
+# 2. El Runtime Asíncrono (Necesario para manejar miles de conexiones)
+tokio = { version = "1.0", features = ["full"] }
+
+# 3. Base de Datos (Postgres con chequeo en tiempo de compilación)
+sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "postgres", "uuid", "chrono", "macros"] }
+
+# 4. Serialización JSON (Para hablar con el Frontend)
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+
+# 5. Variables de Entorno (Para leer contraseñas del archivo .env)
+dotenvy = "0.15"
+
+# 6. Logs y Trazabilidad (Para ver qué pasa en la consola)
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# 7. Manejo de Fechas
+chrono = { version = "0.4", features = ["serde"] }
+
+# 8. CORS (Para permitir que Astro le pida datos a Rust)
+tower-http = { version = "0.5", features = ["cors", "fs", "trace"] }
+
+# Criptografía para contraseñas (Lo más seguro del mercado)
+argon2 = "0.5"
+rand_core = { version = "0.6", features = ["std"] }
+
+# Manejo de Tokens (JWT)
+jsonwebtoken = "9.2"
+
+# Para gestionar cabeceras HTTP (Auth headers)
+headers = "0.4"
+
+axum-extra = { version = "0.9", features = ["typed-header"] }
+uuid = { version = "1.19.0", features = ["v4", "fast-rng"] }

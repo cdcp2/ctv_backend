@@ -1,0 +1,7 @@
+target/
+.env
+.sqlx/
+*.lock
+*.sql
+/upload
+*.png

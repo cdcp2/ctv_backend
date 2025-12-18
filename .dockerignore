@@ -1,0 +1,6 @@
+target/
+.env
+.git/
+test_api.sh
+Dockerfile
+docker-compose.yml
