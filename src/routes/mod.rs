@@ -41,7 +41,10 @@ pub fn create_routes(pool: DbPool) -> Router {
     let admin_routes = Router::new()
         .route("/api/admin/articles/:id", delete(article::delete_article_handler))
         .route("/api/admin/site-config", put(site_config::update_site_config_handler))
+        .route("/api/admin/categories", post(category::create_category_handler))
+        .route("/api/admin/categories/:id", delete(category::delete_category_handler))
         .route("/api/admin/tags", post(tag::create_tag_handler))
+        .route("/api/admin/tags/:id", delete(tag::delete_tag_handler))
         .route("/api/admin/articles/:id/tags", post(tag::set_article_tags_handler))
         .route_layer(middleware::from_fn(admin_middleware));
 

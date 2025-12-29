@@ -11,7 +11,13 @@ pub async fn get_site_config_handler(State(pool): State<DbPool>) -> impl IntoRes
     .await;
 
     match result {
-        Ok(Some(cfg)) => (StatusCode::OK, Json(cfg)).into_response(),
+        Ok(Some(mut cfg)) => {
+            // Si está marcado como activo pero no hay URL, devolvemos is_live_active=false para evitar falsas señales
+            if cfg.is_live_active && cfg.live_stream_url.is_none() {
+                cfg.is_live_active = false;
+            }
+            (StatusCode::OK, Json(cfg)).into_response()
+        }
         Ok(None) => {
             // Si no existe, devolvemos defaults
             let cfg = SiteConfig {

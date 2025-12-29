@@ -17,7 +17,18 @@ pub async fn list_tags_handler(State(pool): State<DbPool>) -> impl IntoResponse 
     .await;
 
     match result {
-        Ok(tags) => (StatusCode::OK, axum::Json(tags)).into_response(),
+        Ok(tags) if !tags.is_empty() => (StatusCode::OK, axum::Json(tags)).into_response(),
+        Ok(_) => {
+          let fallback = vec![
+            Tag { id: 0, name: "Barranquilla".into(), slug: "barranquilla".into() },
+            Tag { id: 0, name: "Atlántico".into(), slug: "atlantico".into() },
+            Tag { id: 0, name: "Política".into(), slug: "politica".into() },
+            Tag { id: 0, name: "Deportes".into(), slug: "deportes".into() },
+            Tag { id: 0, name: "Cultura".into(), slug: "cultura".into() },
+            Tag { id: 0, name: "Economía".into(), slug: "economia".into() },
+          ];
+          (StatusCode::OK, axum::Json(fallback)).into_response()
+        }
         Err(e) => {
             tracing::error!("Error listando tags: {:?}", e);
             (StatusCode::INTERNAL_SERVER_ERROR, "Error interno").into_response()
@@ -122,8 +133,33 @@ pub async fn create_tag_handler(
     match result {
         Ok(tag) => (StatusCode::CREATED, axum::Json(tag)).into_response(),
         Err(e) => {
+            if let Some(db_err) = e.as_database_error() {
+                if db_err.code().map(|c| c == "23505").unwrap_or(false) {
+                    return (StatusCode::CONFLICT, "El tag ya existe").into_response();
+                }
+            }
             tracing::error!("Error creando tag: {:?}", e);
             (StatusCode::BAD_REQUEST, "No se pudo crear el tag").into_response()
+        }
+    }
+}
+
+// DELETE /api/admin/tags/:id (admin)
+pub async fn delete_tag_handler(
+    axum::extract::Path(id): axum::extract::Path<i32>,
+    State(pool): State<DbPool>,
+) -> impl IntoResponse {
+    let res = sqlx::query("DELETE FROM tags WHERE id = $1")
+        .bind(id)
+        .execute(&pool)
+        .await;
+
+    match res {
+        Ok(exec) if exec.rows_affected() > 0 => StatusCode::NO_CONTENT.into_response(),
+        Ok(_) => (StatusCode::NOT_FOUND, "Tag no encontrado").into_response(),
+        Err(e) => {
+            tracing::error!("Error borrando tag: {:?}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "Error interno").into_response()
         }
     }
 }

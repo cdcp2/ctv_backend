@@ -2,7 +2,7 @@ use axum::{
     extract::{Json, Path, Query, State},
     Extension,
     http::StatusCode,
-    response::IntoResponse,
+    response::{IntoResponse, Response},
 };
 use chrono::{DateTime, Utc};
 use serde::Deserialize;
@@ -511,7 +511,12 @@ pub async fn update_article_handler(
 pub async fn get_article_handler(
     Path(slug): Path<String>, // Leemos el slug (ej: "robo-en-centro")
     State(pool): State<DbPool>,
-) -> impl IntoResponse {
+) -> Response {
+    // Si llega "/api/articles/videos" y por algún motivo el router cae aquí, devolvemos el listado de videos
+    if slug == "videos" {
+        return videos_handler(State(pool)).await.into_response();
+    }
+
     let result = sqlx::query_as!(
         Article,
         r#"

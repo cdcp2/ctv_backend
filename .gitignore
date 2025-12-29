@@ -5,3 +5,4 @@ target/
 *.sql
 /upload
 *.png
+node_modules/
