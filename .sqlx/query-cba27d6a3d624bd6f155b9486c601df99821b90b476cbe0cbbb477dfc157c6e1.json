@@ -1,0 +1,113 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT \n            a.id, a.title, a.slug, a.content, a.excerpt, a.main_image_url, a.video_embed_url,\n            a.author_id, a.category_id, a.status as \"status!: String\", a.is_featured as \"is_featured!: bool\",\n            a.is_breaking as \"is_breaking!: bool\", a.views_count as \"views_count!: i64\",\n            a.published_at, a.created_at, a.updated_at\n        FROM articles a\n        WHERE a.id <> $1\n          AND (\n              (a.category_id IS NOT NULL AND a.category_id = $2)\n              OR EXISTS (\n                  SELECT 1 FROM article_tags at1\n                  WHERE at1.article_id = a.id\n                    AND at1.tag_id IN (SELECT tag_id FROM article_tags WHERE article_id = $1)\n              )\n          )\n        ORDER BY a.published_at DESC NULLS LAST, a.created_at DESC\n        LIMIT 5\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "title",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "slug",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "content",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "excerpt",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "main_image_url",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "video_embed_url",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 7,
+        "name": "author_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 8,
+        "name": "category_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 9,
+        "name": "status!: String",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 10,
+        "name": "is_featured!: bool",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 11,
+        "name": "is_breaking!: bool",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 12,
+        "name": "views_count!: i64",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 13,
+        "name": "published_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 14,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 15,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "cba27d6a3d624bd6f155b9486c601df99821b90b476cbe0cbbb477dfc157c6e1"
+}

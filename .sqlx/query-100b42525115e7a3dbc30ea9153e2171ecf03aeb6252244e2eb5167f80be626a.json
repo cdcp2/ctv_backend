@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM article_tags WHERE article_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "100b42525115e7a3dbc30ea9153e2171ecf03aeb6252244e2eb5167f80be626a"
+}

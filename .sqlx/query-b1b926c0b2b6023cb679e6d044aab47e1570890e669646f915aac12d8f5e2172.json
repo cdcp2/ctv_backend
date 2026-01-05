@@ -1,0 +1,110 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT \n            id, title, slug, content, excerpt, main_image_url, video_embed_url,\n            author_id, category_id, status as \"status!: String\", is_featured as \"is_featured!: bool\",\n            is_breaking as \"is_breaking!: bool\", views_count as \"views_count!: i64\",\n            published_at, created_at, updated_at\n        FROM articles\n        WHERE is_featured = TRUE\n        ORDER BY published_at DESC NULLS LAST, created_at DESC\n        LIMIT 10\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "title",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "slug",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "content",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 4,
+        "name": "excerpt",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 5,
+        "name": "main_image_url",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 6,
+        "name": "video_embed_url",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 7,
+        "name": "author_id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 8,
+        "name": "category_id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 9,
+        "name": "status!: String",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 10,
+        "name": "is_featured!: bool",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 11,
+        "name": "is_breaking!: bool",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 12,
+        "name": "views_count!: i64",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 13,
+        "name": "published_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 14,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 15,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "b1b926c0b2b6023cb679e6d044aab47e1570890e669646f915aac12d8f5e2172"
+}

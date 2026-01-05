@@ -1,0 +1,34 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT t.id, t.name, t.slug\n        FROM tags t\n        JOIN article_tags at ON at.tag_id = t.id\n        JOIN articles a ON a.id = at.article_id\n        WHERE a.slug = $1\n        ORDER BY t.name ASC\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "name",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "slug",
+        "type_info": "Varchar"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "50c9253c0d56c2467188cd036420abd214d7db8184f71df6ea49feec3ab86bf0"
+}

@@ -1,0 +1,22 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        UPDATE articles \n        SET views_count = views_count + 1 \n        WHERE slug = $1\n        RETURNING views_count\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "views_count",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "0599f61695886bbb94632d042ade967253ad1c0291a6bde35719a2c45dc62e41"
+}
