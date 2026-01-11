@@ -1,5 +1,5 @@
-use axum::{extract::{Json, State}, http::StatusCode, response::IntoResponse};
-use crate::{db::DbPool, models::tag::{Tag, CreateTagSchema}};
+use axum::{extract::{Json, State}, http::StatusCode, response::IntoResponse, Extension};
+use crate::{db::DbPool, models::tag::{Tag, CreateTagSchema}, models::user::Claims};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -69,8 +69,29 @@ pub async fn list_article_tags_handler(
 pub async fn set_article_tags_handler(
     axum::extract::Path(article_id): axum::extract::Path<i64>,
     State(pool): State<DbPool>,
+    Extension(claims): Extension<Claims>,
     Json(body): Json<TagAssignment>,
 ) -> impl IntoResponse {
+    let article = match sqlx::query!("SELECT author_id FROM articles WHERE id = $1", article_id)
+        .fetch_optional(&pool)
+        .await
+    {
+        Ok(row) => row,
+        Err(e) => {
+            tracing::error!("Error buscando artículo para tags {}: {:?}", article_id, e);
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+        }
+    };
+
+    let author_id = match article {
+        Some(row) => row.author_id,
+        None => return (StatusCode::NOT_FOUND, "Artículo no encontrado").into_response(),
+    };
+
+    if !can_edit_article_tags(&claims, author_id) {
+        return (StatusCode::FORBIDDEN, "No puedes editar los tags de este artículo").into_response();
+    }
+
     let mut tx = match pool.begin().await {
         Ok(tx) => tx,
         Err(e) => {
@@ -186,4 +207,40 @@ fn slugify(input: &str) -> String {
     }
 
     slug
+}
+
+fn can_edit_article_tags(claims: &Claims, author_id: Option<i64>) -> bool {
+    claims.role == "admin" || author_id == Some(claims.user_id)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn claims(role: &str, user_id: i64) -> Claims {
+        Claims {
+            sub: "user".into(),
+            exp: 0,
+            iat: 0,
+            user_id,
+            role: role.into(),
+        }
+    }
+
+    #[test]
+    fn admin_can_edit_any_article_tags() {
+        assert!(can_edit_article_tags(&claims("admin", 1), Some(42)));
+        assert!(can_edit_article_tags(&claims("admin", 1), None));
+    }
+
+    #[test]
+    fn author_can_edit_own_article_tags() {
+        assert!(can_edit_article_tags(&claims("editor", 7), Some(7)));
+    }
+
+    #[test]
+    fn editor_cannot_edit_other_article_tags() {
+        assert!(!can_edit_article_tags(&claims("editor", 7), Some(8)));
+        assert!(!can_edit_article_tags(&claims("editor", 7), None));
+    }
 }

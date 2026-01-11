@@ -34,6 +34,8 @@ pub fn create_routes(pool: DbPool) -> Router {
     let editor_routes = Router::new()
         .route("/api/articles", post(article::create_article_handler))
         .route("/api/admin/articles/:id", put(article::update_article_handler)) // Editar sí dejamos a editores
+        .route("/api/admin/tags", post(tag::create_tag_handler))
+        .route("/api/admin/articles/:id/tags", post(tag::set_article_tags_handler))
         .route("/api/upload", post(upload::upload_image_handler))
         .route_layer(middleware::from_fn(auth_middleware));
 
@@ -43,9 +45,7 @@ pub fn create_routes(pool: DbPool) -> Router {
         .route("/api/admin/site-config", put(site_config::update_site_config_handler))
         .route("/api/admin/categories", post(category::create_category_handler))
         .route("/api/admin/categories/:id", delete(category::delete_category_handler))
-        .route("/api/admin/tags", post(tag::create_tag_handler))
         .route("/api/admin/tags/:id", delete(tag::delete_tag_handler))
-        .route("/api/admin/articles/:id/tags", post(tag::set_article_tags_handler))
         .route_layer(middleware::from_fn(admin_middleware));
 
     // Fusionamos todo
