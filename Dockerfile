@@ -9,6 +9,9 @@ RUN apt-get update && apt-get install -y pkg-config libssl-dev && rm -rf /var/li
 # Copiar TODO el código fuente de una vez
 COPY . .
 
+# Usar cache offline de SQLX generado en .sqlx (evita requerir DATABASE_URL en build)
+ENV SQLX_OFFLINE=true
+
 # Compilar en modo release
 RUN cargo build --release
 
