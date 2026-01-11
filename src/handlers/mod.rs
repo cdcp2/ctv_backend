@@ -5,3 +5,4 @@ pub mod upload;
 pub mod site_config;
 pub mod tag;
 pub mod health;
+pub mod advertisement;

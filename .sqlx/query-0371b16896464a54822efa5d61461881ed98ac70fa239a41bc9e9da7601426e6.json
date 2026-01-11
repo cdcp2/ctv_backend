@@ -1,0 +1,86 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT id, title, image_url, target_url, position, html_snippet,\n               is_active, weight, starts_at, ends_at, created_at, updated_at\n        FROM advertisements\n        ORDER BY created_at DESC\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8"
+      },
+      {
+        "ordinal": 1,
+        "name": "title",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "image_url",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "target_url",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "position",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 5,
+        "name": "html_snippet",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "is_active",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 7,
+        "name": "weight",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 8,
+        "name": "starts_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 9,
+        "name": "ends_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 10,
+        "name": "created_at",
+        "type_info": "Timestamptz"
+      },
+      {
+        "ordinal": 11,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      false,
+      true,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "0371b16896464a54822efa5d61461881ed98ac70fa239a41bc9e9da7601426e6"
+}

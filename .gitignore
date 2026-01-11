@@ -2,6 +2,7 @@ target/
 .env
 *.lock
 *.sql
+!migrations/*.sql
 /upload
 *.png
 node_modules/

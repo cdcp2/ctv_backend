@@ -6,7 +6,7 @@ use axum::{
 use tower_http::services::ServeDir;
 use crate::{
     db::DbPool, 
-    handlers::{article, category, auth, upload, site_config, tag},
+    handlers::{article, category, auth, upload, site_config, tag, advertisement},
     utils::jwt::{auth_middleware, admin_middleware} // <--- Importamos ambos middlewares
 };
 
@@ -27,6 +27,7 @@ pub fn create_routes(pool: DbPool) -> Router {
         .route("/api/articles/:slug/tags", get(tag::list_article_tags_handler))
         .route("/api/site-config", get(site_config::get_site_config_handler))
         .route("/api/tags", get(tag::list_tags_handler))
+        .route("/api/ads", get(advertisement::list_ads_handler))
         .route("/healthz", get(crate::handlers::health::health_handler))
         .nest_service("/uploads", ServeDir::new("uploads"));
 
@@ -46,6 +47,10 @@ pub fn create_routes(pool: DbPool) -> Router {
         .route("/api/admin/categories", post(category::create_category_handler))
         .route("/api/admin/categories/:id", delete(category::delete_category_handler))
         .route("/api/admin/tags/:id", delete(tag::delete_tag_handler))
+        .route("/api/admin/ads", get(advertisement::list_admin_ads_handler))
+        .route("/api/admin/ads", post(advertisement::create_ad_handler))
+        .route("/api/admin/ads/:id", put(advertisement::update_ad_handler))
+        .route("/api/admin/ads/:id", delete(advertisement::delete_ad_handler))
         .route_layer(middleware::from_fn(admin_middleware));
 
     // Fusionamos todo
