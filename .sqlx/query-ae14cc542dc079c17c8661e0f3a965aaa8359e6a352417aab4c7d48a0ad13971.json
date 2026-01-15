@@ -1,0 +1,58 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        INSERT INTO live_stream_config (id, stream_key, updated_at)\n        VALUES (1, $1, NOW())\n        ON CONFLICT (id) DO UPDATE SET\n            stream_key = EXCLUDED.stream_key,\n            updated_at = NOW()\n        RETURNING id, ingest_url, stream_key, playback_url, is_active as \"is_active!: bool\", notes, updated_at\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "ingest_url",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "stream_key",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "playback_url",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "is_active!: bool",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 5,
+        "name": "notes",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Varchar"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "ae14cc542dc079c17c8661e0f3a965aaa8359e6a352417aab4c7d48a0ad13971"
+}

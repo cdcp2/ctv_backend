@@ -1,0 +1,56 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n        SELECT id, ingest_url, stream_key, playback_url, is_active as \"is_active!: bool\", notes, updated_at\n        FROM live_stream_config\n        WHERE id = 1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int4"
+      },
+      {
+        "ordinal": 1,
+        "name": "ingest_url",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 2,
+        "name": "stream_key",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 3,
+        "name": "playback_url",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 4,
+        "name": "is_active!: bool",
+        "type_info": "Bool"
+      },
+      {
+        "ordinal": 5,
+        "name": "notes",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 6,
+        "name": "updated_at",
+        "type_info": "Timestamptz"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "54f77e67eff77e7d68df238ce4c4da2f75be12ac4d1a85692854bd3a185ca8f8"
+}
