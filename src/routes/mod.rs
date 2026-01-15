@@ -6,8 +6,8 @@ use axum::{
 use tower_http::services::ServeDir;
 use crate::{
     db::DbPool, 
-    handlers::{article, category, auth, upload, site_config, tag, advertisement},
-    utils::jwt::{auth_middleware, admin_middleware} // <--- Importamos ambos middlewares
+    handlers::{article, category, auth, upload, site_config, tag, advertisement, live_stream},
+    utils::jwt::{auth_middleware, admin_middleware, admin_or_subadmin_middleware} // <--- Importamos ambos middlewares
 };
 
 pub fn create_routes(pool: DbPool) -> Router {
@@ -44,19 +44,26 @@ pub fn create_routes(pool: DbPool) -> Router {
     let admin_routes = Router::new()
         .route("/api/admin/articles/:id", delete(article::delete_article_handler))
         .route("/api/admin/site-config", put(site_config::update_site_config_handler))
+        .route("/api/admin/live-stream", get(live_stream::get_live_stream_config_handler).put(live_stream::upsert_live_stream_config_handler))
+        .route("/api/admin/live-stream/rotate-key", post(live_stream::rotate_stream_key_handler))
         .route("/api/admin/categories", post(category::create_category_handler))
         .route("/api/admin/categories/:id", delete(category::delete_category_handler))
         .route("/api/admin/tags/:id", delete(tag::delete_tag_handler))
+        .route_layer(middleware::from_fn(admin_middleware));
+
+    // 4. Rutas de Ads (Admin o Sub-Admin)
+    let ads_routes = Router::new()
         .route("/api/admin/ads", get(advertisement::list_admin_ads_handler))
         .route("/api/admin/ads", post(advertisement::create_ad_handler))
         .route("/api/admin/ads/:id", put(advertisement::update_ad_handler))
         .route("/api/admin/ads/:id", delete(advertisement::delete_ad_handler))
-        .route_layer(middleware::from_fn(admin_middleware));
+        .route_layer(middleware::from_fn(admin_or_subadmin_middleware));
 
     // Fusionamos todo
     Router::new()
         .merge(public_routes)
         .merge(editor_routes)
         .merge(admin_routes)
+        .merge(ads_routes)
         .with_state(pool)
 }

@@ -20,6 +20,7 @@ pub async fn register_handler(
     maybe_auth: Option<TypedHeader<Authorization<Bearer>>>,
     Json(payload): Json<RegisterPayload>,
 ) -> impl IntoResponse {
+    let mut is_admin_requester = false;
     // Contamos usuarios existentes para decidir si es bootstrap
     let user_count = match sqlx::query_scalar!("SELECT COUNT(*) FROM users")
         .fetch_one(&pool)
@@ -53,6 +54,7 @@ pub async fn register_handler(
                 if data.claims.role != "admin" {
                     return (StatusCode::FORBIDDEN, "Solo un admin puede crear usuarios").into_response();
                 }
+                is_admin_requester = true;
             }
             Err(_) => return StatusCode::UNAUTHORIZED.into_response(),
         }
@@ -64,8 +66,22 @@ pub async fn register_handler(
         Err(_) => return (StatusCode::INTERNAL_SERVER_ERROR, "Error de seguridad").into_response(),
     };
 
-    // Rol: el primer usuario se vuelve admin automáticamente; el resto, editor
-    let role = if user_count == 0 { "admin" } else { "editor" };
+    // Rol:
+    // - Primer usuario siempre admin
+    // - Si un admin llama con role explícito permitido, lo usamos
+    // - En cualquier otro caso, editor por defecto
+    let requested_role = payload.role.as_deref();
+    let role = if user_count == 0 {
+        "admin".to_string()
+    } else if let Some(r) = requested_role {
+        match r {
+            "admin" if is_admin_requester => "admin".to_string(),
+            "sub_admin" | "editor" => r.to_string(),
+            _ => "editor".to_string(),
+        }
+    } else {
+        "editor".to_string()
+    };
 
     // 2. Insertar en Base de Datos
     let result = sqlx::query_as!(

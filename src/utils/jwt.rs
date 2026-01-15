@@ -74,3 +74,31 @@ pub async fn admin_middleware(
         Err(_) => Err(StatusCode::UNAUTHORIZED),
     }
 }
+
+pub async fn admin_or_subadmin_middleware(
+    TypedHeader(auth): TypedHeader<Authorization<Bearer>>,
+    mut request: Request<axum::body::Body>,
+    next: Next,
+) -> Result<Response, StatusCode> {
+    let token = auth.token();
+    let secret = std::env::var("JWT_SECRET").map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let validation = Validation::default();
+    let token_data = decode::<Claims>(
+        token,
+        &DecodingKey::from_secret(secret.as_bytes()),
+        &validation,
+    );
+
+    match token_data {
+        Ok(data) => {
+            if data.claims.role == "admin" || data.claims.role == "sub_admin" {
+                request.extensions_mut().insert(data.claims);
+                Ok(next.run(request).await)
+            } else {
+                Err(StatusCode::FORBIDDEN)
+            }
+        }
+        Err(_) => Err(StatusCode::UNAUTHORIZED),
+    }
+}

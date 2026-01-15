@@ -25,6 +25,7 @@ pub struct RegisterPayload {
     pub username: String,
     pub email: String,
     pub password: String,
+    pub role: Option<String>,
 }
 
 // Lo que devolvemos cuando el login es exitoso
