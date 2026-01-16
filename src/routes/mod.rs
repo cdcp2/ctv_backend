@@ -10,7 +10,12 @@ use crate::{
     utils::jwt::{auth_middleware, admin_middleware, admin_or_subadmin_middleware} // <--- Importamos ambos middlewares
 };
 
+fn uploads_root() -> String {
+    std::env::var("UPLOAD_DIR").unwrap_or_else(|_| "/var/data/uploads".to_string())
+}
+
 pub fn create_routes(pool: DbPool) -> Router {
+    let uploads_dir = uploads_root();
     // 1. Rutas Públicas (Todo el mundo)
     let public_routes = Router::new()
         .route("/api/categories", get(category::list_categories_handler))
@@ -29,7 +34,7 @@ pub fn create_routes(pool: DbPool) -> Router {
         .route("/api/tags", get(tag::list_tags_handler))
         .route("/api/ads", get(advertisement::list_ads_handler))
         .route("/healthz", get(crate::handlers::health::health_handler))
-        .nest_service("/uploads", ServeDir::new("uploads"));
+        .nest_service("/uploads", ServeDir::new(uploads_dir));
 
     // 2. Rutas de Editores (Crear, Editar, Subir Foto) - Requieren Auth Básico
     let editor_routes = Router::new()
