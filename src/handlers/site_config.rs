@@ -35,7 +35,7 @@ pub async fn get_site_config_handler(State(pool): State<DbPool>) -> impl IntoRes
     }
 }
 
-// PUT /api/admin/site-config (admin)
+// PUT /api/admin/site-config (admin o sub-admin)
 pub async fn update_site_config_handler(
     State(pool): State<DbPool>,
     Json(body): Json<UpdateSiteConfigSchema>,
