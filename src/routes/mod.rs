@@ -48,8 +48,6 @@ pub fn create_routes(pool: DbPool) -> Router {
     // 3. Rutas de ADMIN (Borrar) - Requieren Auth de Admin
     let admin_routes = Router::new()
         .route("/api/admin/articles/:id", delete(article::delete_article_handler))
-        .route("/api/admin/live-stream", get(live_stream::get_live_stream_config_handler).put(live_stream::upsert_live_stream_config_handler))
-        .route("/api/admin/live-stream/rotate-key", post(live_stream::rotate_stream_key_handler))
         .route("/api/admin/categories", post(category::create_category_handler))
         .route("/api/admin/categories/:id", delete(category::delete_category_handler))
         .route("/api/admin/tags/:id", delete(tag::delete_tag_handler))
@@ -58,6 +56,19 @@ pub fn create_routes(pool: DbPool) -> Router {
     // 3.1 Configuración del sitio (Admin o Sub-Admin)
     let site_config_routes = Router::new()
         .route("/api/admin/site-config", put(site_config::update_site_config_handler))
+        .route_layer(middleware::from_fn(admin_or_subadmin_middleware));
+
+    // 3.2 Live stream (Admin o Sub-Admin)
+    let live_stream_routes = Router::new()
+        .route(
+            "/api/admin/live-stream",
+            get(live_stream::get_live_stream_config_handler)
+                .put(live_stream::upsert_live_stream_config_handler),
+        )
+        .route(
+            "/api/admin/live-stream/rotate-key",
+            post(live_stream::rotate_stream_key_handler),
+        )
         .route_layer(middleware::from_fn(admin_or_subadmin_middleware));
 
     // 4. Rutas de Ads (Admin o Sub-Admin)
@@ -74,6 +85,7 @@ pub fn create_routes(pool: DbPool) -> Router {
         .merge(editor_routes)
         .merge(admin_routes)
         .merge(site_config_routes)
+        .merge(live_stream_routes)
         .merge(ads_routes)
         .with_state(pool)
 }

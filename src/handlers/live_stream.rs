@@ -2,7 +2,7 @@ use axum::{extract::{Json, State}, http::StatusCode, response::IntoResponse};
 use uuid::Uuid;
 use crate::{db::DbPool, models::live_stream::{LiveStreamConfig, UpdateLiveStreamConfig}};
 
-// GET /api/admin/live-stream (admin)
+// GET /api/admin/live-stream (admin o sub-admin)
 pub async fn get_live_stream_config_handler(State(pool): State<DbPool>) -> impl IntoResponse {
     let result = sqlx::query_as!(
         LiveStreamConfig,
@@ -36,7 +36,7 @@ pub async fn get_live_stream_config_handler(State(pool): State<DbPool>) -> impl 
     }
 }
 
-// PUT /api/admin/live-stream (admin)
+// PUT /api/admin/live-stream (admin o sub-admin)
 pub async fn upsert_live_stream_config_handler(
     State(pool): State<DbPool>,
     Json(body): Json<UpdateLiveStreamConfig>,
@@ -73,7 +73,7 @@ pub async fn upsert_live_stream_config_handler(
     }
 }
 
-// POST /api/admin/live-stream/rotate-key (admin)
+// POST /api/admin/live-stream/rotate-key (admin o sub-admin)
 pub async fn rotate_stream_key_handler(State(pool): State<DbPool>) -> impl IntoResponse {
     let new_key = format!("ctv-{}", Uuid::new_v4().simple());
 
