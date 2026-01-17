@@ -6,6 +6,7 @@ use axum::{
 };
 use chrono::Utc;
 use serde::Deserialize;
+use sqlx::{query, query_as};
 
 use crate::{
     db::DbPool,
@@ -30,9 +31,7 @@ pub async fn list_ads_handler(
     let position = q.position;
     let now = Utc::now();
 
-    let result = sqlx::query_as!(
-        Advertisement,
-        r#"
+    let result = query_as::<_, Advertisement>(r#"
         SELECT id, title, image_url, target_url, position, html_snippet,
                is_active, weight, starts_at, ends_at, created_at, updated_at
         FROM advertisements
@@ -42,11 +41,10 @@ pub async fn list_ads_handler(
           AND ($2::text IS NULL OR position = $2)
         ORDER BY weight DESC, created_at DESC
         LIMIT $3
-        "#,
-        now,
-        position,
-        limit
-    )
+    "#)
+    .bind(now)
+    .bind(position)
+    .bind(limit)
     .fetch_all(&pool)
     .await;
 
@@ -61,15 +59,12 @@ pub async fn list_ads_handler(
 
 // GET /api/admin/ads
 pub async fn list_admin_ads_handler(State(pool): State<DbPool>) -> impl IntoResponse {
-    let result = sqlx::query_as!(
-        Advertisement,
-        r#"
+    let result = query_as::<_, Advertisement>(r#"
         SELECT id, title, image_url, target_url, position, html_snippet,
                is_active, weight, starts_at, ends_at, created_at, updated_at
         FROM advertisements
         ORDER BY created_at DESC
-        "#
-    )
+    "#)
     .fetch_all(&pool)
     .await;
 
@@ -95,24 +90,21 @@ pub async fn create_ad_handler(
     let is_active = body.is_active.unwrap_or(true);
     let weight = body.weight.unwrap_or(1);
 
-    let result = sqlx::query_as!(
-        Advertisement,
-        r#"
+    let result = query_as::<_, Advertisement>(r#"
         INSERT INTO advertisements (title, image_url, target_url, position, html_snippet, is_active, weight, starts_at, ends_at)
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING id, title, image_url, target_url, position, html_snippet,
                   is_active, weight, starts_at, ends_at, created_at, updated_at
-        "#,
-        body.title,
-        body.image_url,
-        body.target_url,
-        body.position,
-        body.html_snippet,
-        is_active,
-        weight,
-        body.starts_at,
-        body.ends_at
-    )
+    "#)
+    .bind(body.title)
+    .bind(body.image_url)
+    .bind(body.target_url)
+    .bind(body.position)
+    .bind(body.html_snippet)
+    .bind(is_active)
+    .bind(weight)
+    .bind(body.starts_at)
+    .bind(body.ends_at)
     .fetch_one(&pool)
     .await;
 
@@ -136,9 +128,7 @@ pub async fn update_ad_handler(
         return (StatusCode::FORBIDDEN, "Solo admin puede editar anuncios").into_response();
     }
 
-    let result = sqlx::query_as!(
-        Advertisement,
-        r#"
+    let result = query_as::<_, Advertisement>(r#"
         UPDATE advertisements SET
             title = COALESCE($1, title),
             image_url = COALESCE($2, image_url),
@@ -153,18 +143,17 @@ pub async fn update_ad_handler(
         WHERE id = $10
         RETURNING id, title, image_url, target_url, position, html_snippet,
                   is_active, weight, starts_at, ends_at, created_at, updated_at
-        "#,
-        body.title,
-        body.image_url,
-        body.target_url,
-        body.position,
-        body.html_snippet,
-        body.is_active,
-        body.weight,
-        body.starts_at,
-        body.ends_at,
-        id
-    )
+    "#)
+    .bind(body.title)
+    .bind(body.image_url)
+    .bind(body.target_url)
+    .bind(body.position)
+    .bind(body.html_snippet)
+    .bind(body.is_active)
+    .bind(body.weight)
+    .bind(body.starts_at)
+    .bind(body.ends_at)
+    .bind(id)
     .fetch_optional(&pool)
     .await;
 
@@ -188,7 +177,8 @@ pub async fn delete_ad_handler(
         return (StatusCode::FORBIDDEN, "Solo admin puede borrar anuncios").into_response();
     }
 
-    let result = sqlx::query!("DELETE FROM advertisements WHERE id = $1", id)
+    let result = query("DELETE FROM advertisements WHERE id = $1")
+        .bind(id)
         .execute(&pool)
         .await;
 

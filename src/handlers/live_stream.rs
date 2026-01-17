@@ -1,12 +1,11 @@
 use axum::{extract::{Json, State}, http::StatusCode, response::IntoResponse};
+use sqlx::query_as;
 use uuid::Uuid;
 use crate::{db::DbPool, models::live_stream::{LiveStreamConfig, UpdateLiveStreamConfig}};
 
 // GET /api/admin/live-stream (admin o sub-admin)
 pub async fn get_live_stream_config_handler(State(pool): State<DbPool>) -> impl IntoResponse {
-    let result = sqlx::query_as!(
-        LiveStreamConfig,
-        r#"
+    let result = query_as::<_, LiveStreamConfig>(r#"
         SELECT
             id,
             ingest_url,
@@ -14,7 +13,7 @@ pub async fn get_live_stream_config_handler(State(pool): State<DbPool>) -> impl 
             server_main_url,
             server_backup_url,
             playback_url,
-            is_active as "is_active!: bool",
+            is_active,
             notes,
             updated_at,
             CASE
@@ -27,8 +26,7 @@ pub async fn get_live_stream_config_handler(State(pool): State<DbPool>) -> impl 
             END as rtmp_url_backup
         FROM live_stream_config
         WHERE id = 1
-        "#
-    )
+    "#)
     .fetch_optional(&pool)
     .await;
 
@@ -62,9 +60,7 @@ pub async fn upsert_live_stream_config_handler(
     State(pool): State<DbPool>,
     Json(body): Json<UpdateLiveStreamConfig>,
 ) -> impl IntoResponse {
-    let result = sqlx::query_as!(
-        LiveStreamConfig,
-        r#"
+    let result = query_as::<_, LiveStreamConfig>(r#"
         INSERT INTO live_stream_config (id, ingest_url, stream_key, server_main_url, server_backup_url, playback_url, is_active, notes, updated_at)
         VALUES (1, $1, $2, $3, $4, $5, COALESCE($6, true), $7, NOW())
         ON CONFLICT (id) DO UPDATE SET
@@ -83,7 +79,7 @@ pub async fn upsert_live_stream_config_handler(
             server_main_url,
             server_backup_url,
             playback_url,
-            is_active as "is_active!: bool",
+            is_active,
             notes,
             updated_at,
             CASE
@@ -94,15 +90,14 @@ pub async fn upsert_live_stream_config_handler(
                 WHEN server_backup_url IS NOT NULL AND stream_key IS NOT NULL THEN concat_ws('/', rtrim(server_backup_url, '/'), stream_key)
                 ELSE NULL
             END as rtmp_url_backup
-        "#,
-        body.ingest_url,
-        body.stream_key,
-        body.server_main_url,
-        body.server_backup_url,
-        body.playback_url,
-        body.is_active,
-        body.notes
-    )
+    "#)
+    .bind(body.ingest_url)
+    .bind(body.stream_key)
+    .bind(body.server_main_url)
+    .bind(body.server_backup_url)
+    .bind(body.playback_url)
+    .bind(body.is_active)
+    .bind(body.notes)
     .fetch_one(&pool)
     .await;
 
@@ -119,9 +114,7 @@ pub async fn upsert_live_stream_config_handler(
 pub async fn rotate_stream_key_handler(State(pool): State<DbPool>) -> impl IntoResponse {
     let new_key = format!("ctv-{}", Uuid::new_v4().simple());
 
-    let result = sqlx::query_as!(
-        LiveStreamConfig,
-        r#"
+    let result = query_as::<_, LiveStreamConfig>(r#"
         INSERT INTO live_stream_config (id, stream_key, updated_at)
         VALUES (1, $1, NOW())
         ON CONFLICT (id) DO UPDATE SET
@@ -134,7 +127,7 @@ pub async fn rotate_stream_key_handler(State(pool): State<DbPool>) -> impl IntoR
             server_main_url,
             server_backup_url,
             playback_url,
-            is_active as "is_active!: bool",
+            is_active,
             notes,
             updated_at,
             CASE
@@ -145,9 +138,8 @@ pub async fn rotate_stream_key_handler(State(pool): State<DbPool>) -> impl IntoR
                 WHEN server_backup_url IS NOT NULL AND stream_key IS NOT NULL THEN concat_ws('/', rtrim(server_backup_url, '/'), stream_key)
                 ELSE NULL
             END as rtmp_url_backup
-        "#,
-        new_key
-    )
+    "#)
+    .bind(new_key)
     .fetch_one(&pool)
     .await;
 
