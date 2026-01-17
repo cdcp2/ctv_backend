@@ -7,7 +7,7 @@ mod utils;
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
-use http::HeaderValue;
+use axum::http::HeaderValue;
 use tower_http::cors::{AllowHeaders, AllowMethods, AllowOrigin, CorsLayer};
 
 #[tokio::main]
