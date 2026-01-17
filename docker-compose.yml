@@ -30,5 +30,22 @@ services:
       # Opcional: Copiar tu init.sql para que se cree la estructura al iniciar de cero
       # - ./init.sql:/docker-entrypoint-initdb.d/init.sql
 
+  # 3. Servidor de streaming (RTMP -> HLS)
+  streaming:
+    image: alfg/nginx-rtmp:latest
+    ports:
+      - "1935:1935"   # RTMP ingest
+      - "8080:8080"   # HTTP para HLS
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - hls_data:/var/hls
+    restart: always
+    depends_on:
+      - db
+      - backend
+
+  # 4. Proxy opcional para servir HLS en HTTPS podría ir aquí (Caddy/Nginx), según tu despliegue.
+
 volumes:
   pg_data:
+  hls_data:
