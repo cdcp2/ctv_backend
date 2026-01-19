@@ -6,6 +6,7 @@ use axum::{
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use sqlx::FromRow;
 use uuid::Uuid;
 use tracing;
 use crate::{db::DbPool, models::article::{Article, CreateArticleSchema}, models::user::Claims};
@@ -39,7 +40,7 @@ pub struct ViewsQuery {
     pub limit: Option<i64>,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, FromRow)]
 pub struct ArticleViewsRow {
     pub id: i64,
     pub title: String,
@@ -144,38 +145,36 @@ pub async fn article_views_handler(
     let limit = opts.limit.filter(|value| *value > 0);
 
     let result = if let Some(limit) = limit {
-        sqlx::query_as!(
-            ArticleViewsRow,
+        sqlx::query_as::<_, ArticleViewsRow>(
             r#"
             SELECT
                 id,
                 title,
                 slug,
-                views_count as "views_count!: i64",
+                views_count,
                 published_at,
                 created_at
             FROM articles
             ORDER BY views_count DESC, published_at DESC NULLS LAST, created_at DESC
             LIMIT $1
             "#,
-            limit
         )
+        .bind(limit)
         .fetch_all(&pool)
         .await
     } else {
-        sqlx::query_as!(
-            ArticleViewsRow,
+        sqlx::query_as::<_, ArticleViewsRow>(
             r#"
             SELECT
                 id,
                 title,
                 slug,
-                views_count as "views_count!: i64",
+                views_count,
                 published_at,
                 created_at
             FROM articles
             ORDER BY views_count DESC, published_at DESC NULLS LAST, created_at DESC
-            "#
+            "#,
         )
         .fetch_all(&pool)
         .await
