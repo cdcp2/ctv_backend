@@ -5,7 +5,7 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use chrono::{DateTime, Utc};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use tracing;
 use crate::{db::DbPool, models::article::{Article, CreateArticleSchema}, models::user::Claims};
@@ -32,6 +32,21 @@ pub struct FilterOptions {
     pub is_breaking: Option<bool>,
     pub has_video: Option<bool>,
     pub tag_id: Option<i32>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ViewsQuery {
+    pub limit: Option<i64>,
+}
+
+#[derive(Debug, Serialize)]
+pub struct ArticleViewsRow {
+    pub id: i64,
+    pub title: String,
+    pub slug: String,
+    pub views_count: i64,
+    pub published_at: Option<DateTime<Utc>>,
+    pub created_at: Option<DateTime<Utc>>,
 }
 
 // GET /api/articles (Soporta ?category_id=1&search=texto)
@@ -116,6 +131,61 @@ pub async fn list_articles_handler(
         Err(e) => {
             tracing::error!("Error buscando noticias: {:?}", e);
             (StatusCode::INTERNAL_SERVER_ERROR, "Error de base de datos").into_response()
+        }
+    }
+}
+
+// GET /api/articles/views
+pub async fn article_views_handler(
+    opts: Option<Query<ViewsQuery>>,
+    State(pool): State<DbPool>,
+) -> impl IntoResponse {
+    let Query(opts) = opts.unwrap_or(Query(ViewsQuery { limit: None }));
+    let limit = opts.limit.filter(|value| *value > 0);
+
+    let result = if let Some(limit) = limit {
+        sqlx::query_as!(
+            ArticleViewsRow,
+            r#"
+            SELECT
+                id,
+                title,
+                slug,
+                views_count as "views_count!: i64",
+                published_at,
+                created_at
+            FROM articles
+            ORDER BY views_count DESC, published_at DESC NULLS LAST, created_at DESC
+            LIMIT $1
+            "#,
+            limit
+        )
+        .fetch_all(&pool)
+        .await
+    } else {
+        sqlx::query_as!(
+            ArticleViewsRow,
+            r#"
+            SELECT
+                id,
+                title,
+                slug,
+                views_count as "views_count!: i64",
+                published_at,
+                created_at
+            FROM articles
+            ORDER BY views_count DESC, published_at DESC NULLS LAST, created_at DESC
+            "#
+        )
+        .fetch_all(&pool)
+        .await
+    };
+
+    match result {
+        Ok(rows) => (StatusCode::OK, Json(rows)).into_response(),
+        Err(e) => {
+            tracing::error!("Error consultando vistas: {:?}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, "Error interno").into_response()
         }
     }
 }

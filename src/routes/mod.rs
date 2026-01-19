@@ -27,6 +27,7 @@ pub fn create_routes(pool: DbPool) -> Router {
         .route("/api/articles/featured", get(article::featured_handler))
         .route("/api/articles/breaking", get(article::breaking_handler))
         .route("/api/articles/videos", get(article::videos_handler))
+        .route("/api/articles/views", get(article::article_views_handler))
         .route("/api/articles/:slug/related", get(article::related_handler))
         .route("/api/articles/:slug", get(article::get_article_handler))
         .route("/api/articles/:slug/view", post(article::increment_views_handler))

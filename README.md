@@ -15,6 +15,7 @@ curl -X POST http://localhost:3000/api/auth/register \
 - Auth: `POST /api/auth/register` (solo primer usuario o admin), `POST /api/auth/login`.
 - Artículos públicos:
   - `GET /api/articles` (filtros: `category_id`, `search`, `is_featured`, `is_breaking`, `has_video`, `tag_id`)
+  - `GET /api/articles/views` (lista de vistas por artículo)
   - `GET /api/articles/:slug`
   - `POST /api/articles/:slug/view` (incrementa vistas)
   - `GET /api/articles/most-read` | `/featured` | `/breaking` | `/videos`
