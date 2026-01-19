@@ -26,13 +26,13 @@ curl -X POST http://localhost:3000/api/auth/register \
   - `DELETE /api/admin/articles/:id` (admin)
 - Tags: `GET /api/tags`, `POST /api/admin/tags`, `POST /api/admin/articles/:id/tags` (reemplaza set).
 - Configuración del sitio: `GET /api/site-config`, `PUT /api/admin/site-config`.
-- Uploads: `POST /api/upload` (editor/admin, valida MIME imagen y max 5MB), estático en `/uploads/...`.
+- Uploads: `POST /api/upload` (editor/admin, valida MIME imagen), estático en `/uploads/...`.
 - Health: `GET /healthz`.
 
 ## Notas de seguridad/autorización
 - Primer usuario creado vía `/auth/register` se vuelve `admin`; siguientes requieren token admin.
 - Edición de artículos: autor o admin; borrado solo admin.
-- Upload restringido a imágenes (jpg/png/webp/gif) y 5MB.
+- Upload restringido a imágenes (jpg/png/webp/gif).
 
 ## Testing rápido
 `ADMIN_EMAIL=admin@ctv.com ADMIN_PASSWORD=Admin123! ./test_api.sh`  

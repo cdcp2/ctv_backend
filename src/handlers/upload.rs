@@ -9,8 +9,6 @@ use tokio::fs;
 use uuid::Uuid;
 use mime::Mime;
 
-const MAX_IMAGE_BYTES: usize = 5 * 1024 * 1024; // 5MB
-
 fn upload_dir() -> PathBuf {
     // En Render pon UPLOAD_DIR=/var/data/uploads
     env::var("UPLOAD_DIR")
@@ -47,10 +45,6 @@ pub async fn upload_image_handler(mut multipart: Multipart) -> impl IntoResponse
             Ok(bytes) => bytes,
             Err(_) => return (StatusCode::BAD_REQUEST, "Error al leer el archivo").into_response(),
         };
-
-        if data.len() > MAX_IMAGE_BYTES {
-            return (StatusCode::BAD_REQUEST, "La imagen excede el tamaño máximo de 5MB").into_response();
-        }
 
         if let Some(ct) = content_type {
             let allowed = matches!(

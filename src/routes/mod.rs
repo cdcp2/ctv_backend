@@ -1,4 +1,5 @@
 use axum::{
+    extract::DefaultBodyLimit,
     middleware,
     routing::{get, post, delete, put},
     Router,
@@ -42,7 +43,7 @@ pub fn create_routes(pool: DbPool) -> Router {
         .route("/api/admin/articles/:id", put(article::update_article_handler)) // Editar sí dejamos a editores
         .route("/api/admin/tags", post(tag::create_tag_handler))
         .route("/api/admin/articles/:id/tags", post(tag::set_article_tags_handler))
-        .route("/api/upload", post(upload::upload_image_handler))
+        .route("/api/upload", post(upload::upload_image_handler).layer(DefaultBodyLimit::disable()))
         .route_layer(middleware::from_fn(auth_middleware));
 
     // 3. Rutas de ADMIN (Borrar) - Requieren Auth de Admin
