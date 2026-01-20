@@ -71,6 +71,10 @@ pub fn create_routes(pool: DbPool) -> Router {
             "/api/admin/live-stream/rotate-key",
             post(live_stream::rotate_stream_key_handler),
         )
+        .route(
+            "/api/admin/live-stream/sync-key",
+            post(live_stream::sync_stream_key_handler),
+        )
         .route_layer(middleware::from_fn(admin_or_subadmin_middleware));
 
     // 4. Rutas de Ads (Admin o Sub-Admin)
