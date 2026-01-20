@@ -188,6 +188,13 @@ pub async fn rotate_stream_key_handler(State(pool): State<DbPool>) -> impl IntoR
         VALUES (1, $1, NOW())
         ON CONFLICT (id) DO UPDATE SET
             stream_key = EXCLUDED.stream_key,
+            playback_url = CASE
+                WHEN live_stream_config.playback_url IS NOT NULL
+                 AND $2 IS NOT NULL
+                 AND live_stream_config.playback_url LIKE concat('%', $2, '%')
+                THEN replace(live_stream_config.playback_url, $2, EXCLUDED.stream_key)
+                ELSE live_stream_config.playback_url
+            END,
             updated_at = NOW()
         RETURNING
             id,
@@ -208,12 +215,33 @@ pub async fn rotate_stream_key_handler(State(pool): State<DbPool>) -> impl IntoR
                 ELSE NULL
             END as rtmp_url_backup
     "#)
-    .bind(new_key)
+    .bind(new_key.clone())
+    .bind(current_key.clone())
     .fetch_one(&pool)
     .await;
 
     match result {
-        Ok(cfg) => (StatusCode::OK, Json(cfg)).into_response(),
+        Ok(cfg) => {
+            if let Some(old_key) = current_key.as_deref() {
+                let _ = sqlx::query(
+                    r#"
+                    UPDATE site_config
+                    SET live_stream_url = CASE
+                        WHEN live_stream_url IS NOT NULL
+                         AND live_stream_url LIKE concat('%', $1, '%')
+                        THEN replace(live_stream_url, $1, $2)
+                        ELSE live_stream_url
+                    END
+                    WHERE id = 1
+                    "#,
+                )
+                .bind(old_key)
+                .bind(&new_key)
+                .execute(&pool)
+                .await;
+            }
+            (StatusCode::OK, Json(cfg)).into_response()
+        }
         Err(e) => {
             if let Some(old_key) = current_key.as_deref() {
                 let _ = sync_stream_key(old_key).await;
