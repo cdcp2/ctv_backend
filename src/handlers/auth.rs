@@ -1,17 +1,20 @@
+use crate::{
+    db::DbPool,
+    models::user::{
+        AuthResponse, Claims, LoginPayload, ROLE_ADMIN, ROLE_EDITOR, ROLE_SUB_ADMIN,
+        RegisterPayload, User, canonicalize_role, is_admin_role,
+    },
+    utils::security::{hash_password, verify_password},
+};
 use axum::{
-    extract::{State, Json},
+    extract::{Json, State},
     http::StatusCode,
     response::IntoResponse,
 };
-use axum_extra::headers::{Authorization, authorization::Bearer};
 use axum_extra::TypedHeader;
-use jsonwebtoken::{encode, EncodingKey, Header};
-use chrono::{Utc, Duration};
-use crate::{
-    db::DbPool,
-    models::user::{User, LoginPayload, RegisterPayload, AuthResponse, Claims},
-    utils::security::{hash_password, verify_password},
-};
+use axum_extra::headers::{Authorization, authorization::Bearer};
+use chrono::{Duration, Utc};
+use jsonwebtoken::{EncodingKey, Header, encode};
 
 // POST /api/auth/register (Solo admins; primer usuario se permite sin token y queda como admin)
 pub async fn register_handler(
@@ -37,7 +40,10 @@ pub async fn register_handler(
     if user_count > 0 {
         let TypedHeader(auth_header) = match maybe_auth {
             Some(h) => h,
-            None => return (StatusCode::FORBIDDEN, "Solo un admin puede crear usuarios").into_response(),
+            None => {
+                return (StatusCode::FORBIDDEN, "Solo un admin puede crear usuarios")
+                    .into_response();
+            }
         };
 
         let secret = std::env::var("JWT_SECRET").expect("JWT_SECRET debe estar en .env");
@@ -51,8 +57,9 @@ pub async fn register_handler(
 
         match token_data {
             Ok(data) => {
-                if data.claims.role != "admin" {
-                    return (StatusCode::FORBIDDEN, "Solo un admin puede crear usuarios").into_response();
+                if !is_admin_role(&data.claims.role) {
+                    return (StatusCode::FORBIDDEN, "Solo un admin puede crear usuarios")
+                        .into_response();
                 }
                 is_admin_requester = true;
             }
@@ -72,15 +79,16 @@ pub async fn register_handler(
     // - En cualquier otro caso, editor por defecto
     let requested_role = payload.role.as_deref();
     let role = if user_count == 0 {
-        "admin".to_string()
+        ROLE_ADMIN.to_string()
     } else if let Some(r) = requested_role {
-        match r {
-            "admin" if is_admin_requester => "admin".to_string(),
-            "sub_admin" | "editor" => r.to_string(),
-            _ => "editor".to_string(),
+        match canonicalize_role(r) {
+            ROLE_ADMIN if is_admin_requester => ROLE_ADMIN.to_string(),
+            ROLE_SUB_ADMIN => ROLE_SUB_ADMIN.to_string(),
+            ROLE_EDITOR => ROLE_EDITOR.to_string(),
+            _ => ROLE_EDITOR.to_string(),
         }
     } else {
-        "editor".to_string()
+        ROLE_EDITOR.to_string()
     };
 
     // 2. Insertar en Base de Datos
@@ -150,18 +158,23 @@ pub async fn login_handler(
     };
 
     let secret = std::env::var("JWT_SECRET").expect("JWT_SECRET debe estar en .env");
-    
+
     let token = encode(
-        &Header::default(), 
-        &claims, 
-        &EncodingKey::from_secret(secret.as_bytes())
-    ).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR);
+        &Header::default(),
+        &claims,
+        &EncodingKey::from_secret(secret.as_bytes()),
+    )
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR);
 
     match token {
-        Ok(t) => (StatusCode::OK, Json(AuthResponse { 
-            token: t,
-            token_type: "Bearer".to_string() 
-        })).into_response(),
+        Ok(t) => (
+            StatusCode::OK,
+            Json(AuthResponse {
+                token: t,
+                token_type: "Bearer".to_string(),
+            }),
+        )
+            .into_response(),
         Err(_) => (StatusCode::INTERNAL_SERVER_ERROR, "Error generando token").into_response(),
     }
 }

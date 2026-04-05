@@ -1,9 +1,9 @@
+pub mod advertisement;
 pub mod article;
-pub mod category;
 pub mod auth;
-pub mod upload;
+pub mod category;
+pub mod health;
+pub mod live_stream;
 pub mod site_config;
 pub mod tag;
-pub mod health;
-pub mod advertisement;
-pub mod live_stream;
+pub mod upload;

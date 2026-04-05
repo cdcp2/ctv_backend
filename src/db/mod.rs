@@ -1,4 +1,4 @@
-use sqlx::{postgres::PgPoolOptions, Pool, Postgres};
+use sqlx::{Pool, Postgres, postgres::PgPoolOptions};
 use std::env;
 
 // Definimos un alias para "Pool<Postgres>"

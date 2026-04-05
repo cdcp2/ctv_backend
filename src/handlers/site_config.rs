@@ -1,5 +1,12 @@
-use axum::{extract::{State, Json}, http::StatusCode, response::IntoResponse};
-use crate::{db::DbPool, models::site_config::{SiteConfig, UpdateSiteConfigSchema}};
+use crate::{
+    db::DbPool,
+    models::site_config::{SiteConfig, UpdateSiteConfigSchema},
+};
+use axum::{
+    extract::{Json, State},
+    http::StatusCode,
+    response::IntoResponse,
+};
 
 // GET /api/site-config (público)
 pub async fn get_site_config_handler(State(pool): State<DbPool>) -> impl IntoResponse {

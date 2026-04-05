@@ -1,12 +1,12 @@
+use crate::models::user::{Claims, is_admin_or_sub_admin_role, is_admin_role};
 use axum::{
     http::{Request, StatusCode},
     middleware::Next,
     response::Response,
 };
-use axum_extra::headers::{Authorization, authorization::Bearer};
 use axum_extra::TypedHeader;
-use jsonwebtoken::{decode, DecodingKey, Validation};
-use crate::{models::user::Claims};
+use axum_extra::headers::{Authorization, authorization::Bearer};
+use jsonwebtoken::{DecodingKey, Validation, decode};
 
 // Esta función se ejecutará ANTES de llegar al handler de crear noticia
 pub async fn auth_middleware(
@@ -50,7 +50,7 @@ pub async fn admin_middleware(
     // 1. Obtener y decodificar token (igual que el otro middleware)
     let token = auth.token();
     let secret = std::env::var("JWT_SECRET").map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    
+
     let validation = Validation::default();
     let token_data = decode::<Claims>(
         token,
@@ -61,7 +61,7 @@ pub async fn admin_middleware(
     match token_data {
         Ok(data) => {
             // 2. VERIFICACIÓN EXTRA: ¿Es Admin?
-            if data.claims.role == "admin" {
+            if is_admin_role(&data.claims.role) {
                 // Adjuntamos claims por si se necesitan aguas abajo
                 request.extensions_mut().insert(data.claims);
                 // Si es admin, pase señor
@@ -92,7 +92,7 @@ pub async fn admin_or_subadmin_middleware(
 
     match token_data {
         Ok(data) => {
-            if data.claims.role == "admin" || data.claims.role == "sub_admin" {
+            if is_admin_or_sub_admin_role(&data.claims.role) {
                 request.extensions_mut().insert(data.claims);
                 Ok(next.run(request).await)
             } else {

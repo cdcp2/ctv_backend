@@ -1,5 +1,5 @@
-use axum::{extract::State, http::StatusCode, response::IntoResponse, Json};
 use crate::{db::DbPool, models::category::Category};
+use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
 use serde::Deserialize;
 
 #[derive(Deserialize)]
@@ -22,13 +22,48 @@ pub async fn list_categories_handler(State(pool): State<DbPool>) -> impl IntoRes
         Ok(_) => {
             // Fallback de categorías básicas si la tabla está vacía
             let fallback = vec![
-                Category { id: 0, name: "Barranquilla".into(), slug: "barranquilla".into(), description: None },
-                Category { id: 0, name: "Atlántico".into(), slug: "atlantico".into(), description: None },
-                Category { id: 0, name: "Judiciales".into(), slug: "judiciales".into(), description: None },
-                Category { id: 0, name: "Deportes".into(), slug: "deportes".into(), description: None },
-                Category { id: 0, name: "Cultura".into(), slug: "cultura".into(), description: None },
-                Category { id: 0, name: "Economía".into(), slug: "economia".into(), description: None },
-                Category { id: 0, name: "Opinión".into(), slug: "opinion".into(), description: None },
+                Category {
+                    id: 0,
+                    name: "Barranquilla".into(),
+                    slug: "barranquilla".into(),
+                    description: None,
+                },
+                Category {
+                    id: 0,
+                    name: "Atlántico".into(),
+                    slug: "atlantico".into(),
+                    description: None,
+                },
+                Category {
+                    id: 0,
+                    name: "Judiciales".into(),
+                    slug: "judiciales".into(),
+                    description: None,
+                },
+                Category {
+                    id: 0,
+                    name: "Deportes".into(),
+                    slug: "deportes".into(),
+                    description: None,
+                },
+                Category {
+                    id: 0,
+                    name: "Cultura".into(),
+                    slug: "cultura".into(),
+                    description: None,
+                },
+                Category {
+                    id: 0,
+                    name: "Economía".into(),
+                    slug: "economia".into(),
+                    description: None,
+                },
+                Category {
+                    id: 0,
+                    name: "Opinión".into(),
+                    slug: "opinion".into(),
+                    description: None,
+                },
             ];
             (StatusCode::OK, Json(fallback)).into_response()
         }
@@ -96,7 +131,11 @@ fn slugify(input: &str) -> String {
             prev_hyphen = true;
         }
     }
-    while slug.ends_with('-') { slug.pop(); }
-    while slug.starts_with('-') { slug.remove(0); }
+    while slug.ends_with('-') {
+        slug.pop();
+    }
+    while slug.starts_with('-') {
+        slug.remove(0);
+    }
     slug
 }

@@ -1,15 +1,19 @@
+use crate::{
+    db::DbPool,
+    models::article::{Article, CreateArticleSchema},
+    models::user::Claims,
+};
 use axum::{
-    extract::{Json, Path, Query, State},
     Extension,
+    extract::{Json, Path, Query, State},
     http::StatusCode,
     response::{IntoResponse, Response},
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
-use uuid::Uuid;
 use tracing;
-use crate::{db::DbPool, models::article::{Article, CreateArticleSchema}, models::user::Claims};
+use uuid::Uuid;
 
 #[derive(Debug, Deserialize)]
 pub struct UpdateArticleSchema {
@@ -56,8 +60,8 @@ pub async fn list_articles_handler(
     State(pool): State<DbPool>,
 ) -> impl IntoResponse {
     // Extraemos los valores o los dejamos en None
-    let Query(opts) = opts.unwrap_or(Query(FilterOptions { 
-        category_id: None, 
+    let Query(opts) = opts.unwrap_or(Query(FilterOptions {
+        category_id: None,
         search: None,
         is_featured: None,
         is_breaking: None,
@@ -76,7 +80,7 @@ pub async fn list_articles_handler(
     // ($1::int IS NULL OR category_id = $1): Si no envían categoría, ignora el filtro.
     // ILIKE: Búsqueda insensible a mayúsculas.
     // '%' || $2 || '%': Agrega comodines para buscar "cualquier parte del texto".
-    
+
     let result = sqlx::query_as!(
         Article,
         r#"
@@ -190,9 +194,7 @@ pub async fn article_views_handler(
 }
 
 // GET /api/articles/most-read
-pub async fn most_read_handler(
-    State(pool): State<DbPool>,
-) -> impl IntoResponse {
+pub async fn most_read_handler(State(pool): State<DbPool>) -> impl IntoResponse {
     let result = sqlx::query_as!(
         Article,
         r#"
@@ -218,9 +220,7 @@ pub async fn most_read_handler(
     }
 }
 
-pub async fn featured_handler(
-    State(pool): State<DbPool>,
-) -> impl IntoResponse {
+pub async fn featured_handler(State(pool): State<DbPool>) -> impl IntoResponse {
     let result = sqlx::query_as!(
         Article,
         r#"
@@ -247,9 +247,7 @@ pub async fn featured_handler(
     }
 }
 
-pub async fn breaking_handler(
-    State(pool): State<DbPool>,
-) -> impl IntoResponse {
+pub async fn breaking_handler(State(pool): State<DbPool>) -> impl IntoResponse {
     let result = sqlx::query_as!(
         Article,
         r#"
@@ -276,9 +274,7 @@ pub async fn breaking_handler(
     }
 }
 
-pub async fn videos_handler(
-    State(pool): State<DbPool>,
-) -> impl IntoResponse {
+pub async fn videos_handler(State(pool): State<DbPool>) -> impl IntoResponse {
     let result = sqlx::query_as!(
         Article,
         r#"
@@ -378,7 +374,11 @@ pub async fn increment_views_handler(
     .await;
 
     match result {
-        Ok(Some(row)) => (StatusCode::OK, Json(serde_json::json!({ "views_count": row.views_count }))).into_response(),
+        Ok(Some(row)) => (
+            StatusCode::OK,
+            Json(serde_json::json!({ "views_count": row.views_count })),
+        )
+            .into_response(),
         Ok(None) => (StatusCode::NOT_FOUND, "Noticia no encontrada").into_response(),
         Err(e) => {
             tracing::error!("Error incrementando vistas: {:?}", e);
@@ -444,7 +444,11 @@ pub async fn create_article_handler(
 
     match query_result {
         Ok(article) => {
-            tracing::info!("article_created id={} author_id={}", article.id, claims.user_id);
+            tracing::info!(
+                "article_created id={} author_id={}",
+                article.id,
+                claims.user_id
+            );
             (StatusCode::CREATED, Json(article)).into_response()
         }
         Err(e) => {
@@ -489,12 +493,10 @@ pub async fn update_article_handler(
     Json(body): Json<UpdateArticleSchema>,
 ) -> impl IntoResponse {
     // Verificamos si existe primero para no dar falsos positivos
-    let existing = match sqlx::query!(
-        "SELECT id, author_id FROM articles WHERE id = $1",
-        id
-    )
-    .fetch_optional(&pool)
-    .await {
+    let existing = match sqlx::query!("SELECT id, author_id FROM articles WHERE id = $1", id)
+        .fetch_optional(&pool)
+        .await
+    {
         Ok(row) => row,
         Err(e) => {
             tracing::error!("Error buscando noticia {}: {:?}", id, e);
@@ -566,7 +568,11 @@ pub async fn update_article_handler(
 
     match result {
         Ok(updated_article) => {
-            tracing::info!("article_updated id={} by_user={}", updated_article.id, claims.user_id);
+            tracing::info!(
+                "article_updated id={} by_user={}",
+                updated_article.id,
+                claims.user_id
+            );
             (StatusCode::OK, Json(updated_article)).into_response()
         }
         Err(e) => {

@@ -1,9 +1,16 @@
-use axum::{extract::{Json, State}, http::StatusCode, response::IntoResponse};
+use crate::{
+    db::DbPool,
+    models::live_stream::{LiveStreamConfig, UpdateLiveStreamConfig},
+};
+use axum::{
+    extract::{Json, State},
+    http::StatusCode,
+    response::IntoResponse,
+};
 use serde::Serialize;
 use sha2::{Digest, Sha256};
 use sqlx::query_as;
 use uuid::Uuid;
-use crate::{db::DbPool, models::live_stream::{LiveStreamConfig, UpdateLiveStreamConfig}};
 
 #[derive(Serialize)]
 struct SyncPayload {
@@ -40,12 +47,14 @@ async fn sync_stream_key(stream_key: &str) -> Result<bool, String> {
 }
 
 async fn get_current_stream_key(pool: &DbPool) -> Option<String> {
-    sqlx::query_scalar::<_, Option<String>>("SELECT stream_key FROM live_stream_config WHERE id = 1")
-        .fetch_optional(pool)
-        .await
-        .ok()
-        .flatten()
-        .flatten()
+    sqlx::query_scalar::<_, Option<String>>(
+        "SELECT stream_key FROM live_stream_config WHERE id = 1",
+    )
+    .fetch_optional(pool)
+    .await
+    .ok()
+    .flatten()
+    .flatten()
 }
 
 // GET /api/admin/live-stream (admin o sub-admin)
@@ -261,7 +270,11 @@ pub async fn sync_stream_key_handler(State(pool): State<DbPool>) -> impl IntoRes
 
     match sync_stream_key(&stream_key).await {
         Ok(true) => (StatusCode::OK, Json(SyncResponse { synced: true })).into_response(),
-        Ok(false) => (StatusCode::PRECONDITION_FAILED, "STREAM_SYNC_URL no configurado").into_response(),
+        Ok(false) => (
+            StatusCode::PRECONDITION_FAILED,
+            "STREAM_SYNC_URL no configurado",
+        )
+            .into_response(),
         Err(err) => (StatusCode::BAD_GATEWAY, err).into_response(),
     }
 }

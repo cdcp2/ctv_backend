@@ -1,5 +1,14 @@
-use axum::{extract::{Json, State}, http::StatusCode, response::IntoResponse, Extension};
-use crate::{db::DbPool, models::tag::{Tag, CreateTagSchema}, models::user::Claims};
+use crate::{
+    db::DbPool,
+    models::tag::{CreateTagSchema, Tag},
+    models::user::Claims,
+};
+use axum::{
+    Extension,
+    extract::{Json, State},
+    http::StatusCode,
+    response::IntoResponse,
+};
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
@@ -9,25 +18,46 @@ pub struct TagAssignment {
 
 // GET /api/tags (público)
 pub async fn list_tags_handler(State(pool): State<DbPool>) -> impl IntoResponse {
-    let result = sqlx::query_as!(
-        Tag,
-        r#"SELECT id, name, slug FROM tags ORDER BY name ASC"#
-    )
-    .fetch_all(&pool)
-    .await;
+    let result = sqlx::query_as!(Tag, r#"SELECT id, name, slug FROM tags ORDER BY name ASC"#)
+        .fetch_all(&pool)
+        .await;
 
     match result {
         Ok(tags) if !tags.is_empty() => (StatusCode::OK, axum::Json(tags)).into_response(),
         Ok(_) => {
-          let fallback = vec![
-            Tag { id: 0, name: "Barranquilla".into(), slug: "barranquilla".into() },
-            Tag { id: 0, name: "Atlántico".into(), slug: "atlantico".into() },
-            Tag { id: 0, name: "Política".into(), slug: "politica".into() },
-            Tag { id: 0, name: "Deportes".into(), slug: "deportes".into() },
-            Tag { id: 0, name: "Cultura".into(), slug: "cultura".into() },
-            Tag { id: 0, name: "Economía".into(), slug: "economia".into() },
-          ];
-          (StatusCode::OK, axum::Json(fallback)).into_response()
+            let fallback = vec![
+                Tag {
+                    id: 0,
+                    name: "Barranquilla".into(),
+                    slug: "barranquilla".into(),
+                },
+                Tag {
+                    id: 0,
+                    name: "Atlántico".into(),
+                    slug: "atlantico".into(),
+                },
+                Tag {
+                    id: 0,
+                    name: "Política".into(),
+                    slug: "politica".into(),
+                },
+                Tag {
+                    id: 0,
+                    name: "Deportes".into(),
+                    slug: "deportes".into(),
+                },
+                Tag {
+                    id: 0,
+                    name: "Cultura".into(),
+                    slug: "cultura".into(),
+                },
+                Tag {
+                    id: 0,
+                    name: "Economía".into(),
+                    slug: "economia".into(),
+                },
+            ];
+            (StatusCode::OK, axum::Json(fallback)).into_response()
         }
         Err(e) => {
             tracing::error!("Error listando tags: {:?}", e);
@@ -89,7 +119,11 @@ pub async fn set_article_tags_handler(
     };
 
     if !can_edit_article_tags(&claims, author_id) {
-        return (StatusCode::FORBIDDEN, "No puedes editar los tags de este artículo").into_response();
+        return (
+            StatusCode::FORBIDDEN,
+            "No puedes editar los tags de este artículo",
+        )
+            .into_response();
     }
 
     let mut tx = match pool.begin().await {

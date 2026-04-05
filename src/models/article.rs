@@ -1,6 +1,6 @@
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
-use chrono::{DateTime, Utc};
 
 // 1. Estructura que representa una fila completa en la Base de Datos
 #[derive(Debug, Deserialize, Serialize, FromRow)]
@@ -32,7 +32,7 @@ pub struct CreateArticleSchema {
     pub category_id: Option<i32>,
     pub main_image_url: Option<String>,
     pub video_embed_url: Option<String>,
-    pub status: Option<String>,       // draft | published | archived
+    pub status: Option<String>, // draft | published | archived
     pub is_featured: Option<bool>,
     pub is_breaking: Option<bool>,
     pub published_at: Option<DateTime<Utc>>,

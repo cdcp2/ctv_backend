@@ -1,6 +1,11 @@
 use serde::{Deserialize, Serialize};
 use sqlx::FromRow;
 
+pub const ROLE_ADMIN: &str = "admin";
+pub const ROLE_SUB_ADMIN: &str = "sub_admin";
+pub const ROLE_SUBADMIN_ALIAS: &str = "subadmin";
+pub const ROLE_EDITOR: &str = "editor";
+
 // Lo que guardamos en la base de datos
 #[derive(Debug, Serialize, FromRow)]
 pub struct User {
@@ -43,4 +48,42 @@ pub struct Claims {
     pub iat: usize,  // Issued At
     pub user_id: i64,
     pub role: String,
+}
+
+pub fn canonicalize_role(role: &str) -> &str {
+    match role.trim() {
+        ROLE_SUBADMIN_ALIAS => ROLE_SUB_ADMIN,
+        other => other,
+    }
+}
+
+pub fn is_admin_role(role: &str) -> bool {
+    canonicalize_role(role) == ROLE_ADMIN
+}
+
+pub fn is_sub_admin_role(role: &str) -> bool {
+    canonicalize_role(role) == ROLE_SUB_ADMIN
+}
+
+pub fn is_admin_or_sub_admin_role(role: &str) -> bool {
+    is_admin_role(role) || is_sub_admin_role(role)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn canonicalizes_subadmin_alias() {
+        assert_eq!(canonicalize_role("subadmin"), ROLE_SUB_ADMIN);
+        assert_eq!(canonicalize_role("sub_admin"), ROLE_SUB_ADMIN);
+    }
+
+    #[test]
+    fn recognizes_admin_and_subadmin_roles() {
+        assert!(is_admin_role("admin"));
+        assert!(is_admin_or_sub_admin_role("subadmin"));
+        assert!(is_admin_or_sub_admin_role("sub_admin"));
+        assert!(!is_admin_or_sub_admin_role(ROLE_EDITOR));
+    }
 }
