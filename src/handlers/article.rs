@@ -11,7 +11,7 @@ use axum::{
 };
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use sqlx::FromRow;
+use sqlx::{FromRow, Row};
 use tracing;
 use uuid::Uuid;
 
@@ -81,8 +81,7 @@ pub async fn list_articles_handler(
     // ILIKE: Búsqueda insensible a mayúsculas.
     // '%' || $2 || '%': Agrega comodines para buscar "cualquier parte del texto".
 
-    let result = sqlx::query_as!(
-        Article,
+    let result = sqlx::query_as::<_, Article>(
         r#"
         SELECT 
             id, 
@@ -94,13 +93,16 @@ pub async fn list_articles_handler(
             video_embed_url,
             author_id, 
             category_id, 
-            status as "status!: String", 
-            is_featured as "is_featured!: bool", 
-            is_breaking as "is_breaking!: bool", 
-            views_count as "views_count!: i64",
+            status,
+            is_featured,
+            is_breaking,
+            views_count,
             published_at, created_at, updated_at 
         FROM articles 
         WHERE 
+            status = 'published'
+            AND (published_at IS NULL OR published_at <= NOW())
+            AND
             ($1::int IS NULL OR category_id = $1)
             AND
             ($2::text IS NULL OR (title ILIKE '%' || $2 || '%' OR content ILIKE '%' || $2 || '%'))
@@ -111,23 +113,23 @@ pub async fn list_articles_handler(
             AND
             (
                 $5::bool IS NULL OR 
-                ($5 = TRUE AND video_embed_url IS NOT NULL) OR
-                ($5 = FALSE AND video_embed_url IS NULL)
+                ($5 = TRUE AND NULLIF(BTRIM(video_embed_url), '') IS NOT NULL) OR
+                ($5 = FALSE AND NULLIF(BTRIM(video_embed_url), '') IS NULL)
             )
             AND
             ($6::int IS NULL OR EXISTS (
                 SELECT 1 FROM article_tags at WHERE at.article_id = articles.id AND at.tag_id = $6
             ))
-        ORDER BY created_at DESC 
+        ORDER BY published_at DESC NULLS LAST, created_at DESC 
         LIMIT 20
         "#,
-        category_id,
-        search_term,
-        is_featured,
-        is_breaking,
-        has_video,
-        tag_id
     )
+    .bind(category_id)
+    .bind(search_term)
+    .bind(is_featured)
+    .bind(is_breaking)
+    .bind(has_video)
+    .bind(tag_id)
     .fetch_all(&pool)
     .await;
 
@@ -195,16 +197,17 @@ pub async fn article_views_handler(
 
 // GET /api/articles/most-read
 pub async fn most_read_handler(State(pool): State<DbPool>) -> impl IntoResponse {
-    let result = sqlx::query_as!(
-        Article,
+    let result = sqlx::query_as::<_, Article>(
         r#"
         SELECT 
             id, title, slug, content, excerpt, main_image_url, video_embed_url,
-            author_id, category_id, status as "status!: String", is_featured as "is_featured!: bool",
-            is_breaking as "is_breaking!: bool", views_count as "views_count!: i64",
+            author_id, category_id, status, is_featured,
+            is_breaking, views_count,
             published_at, created_at, updated_at
         FROM articles
-        ORDER BY views_count DESC
+        WHERE status = 'published'
+          AND (published_at IS NULL OR published_at <= NOW())
+        ORDER BY views_count DESC, published_at DESC NULLS LAST, created_at DESC
         LIMIT 10
         "#
     )
@@ -221,16 +224,17 @@ pub async fn most_read_handler(State(pool): State<DbPool>) -> impl IntoResponse 
 }
 
 pub async fn featured_handler(State(pool): State<DbPool>) -> impl IntoResponse {
-    let result = sqlx::query_as!(
-        Article,
+    let result = sqlx::query_as::<_, Article>(
         r#"
         SELECT 
             id, title, slug, content, excerpt, main_image_url, video_embed_url,
-            author_id, category_id, status as "status!: String", is_featured as "is_featured!: bool",
-            is_breaking as "is_breaking!: bool", views_count as "views_count!: i64",
+            author_id, category_id, status, is_featured,
+            is_breaking, views_count,
             published_at, created_at, updated_at
         FROM articles
-        WHERE is_featured = TRUE
+        WHERE status = 'published'
+          AND (published_at IS NULL OR published_at <= NOW())
+          AND is_featured = TRUE
         ORDER BY published_at DESC NULLS LAST, created_at DESC
         LIMIT 10
         "#
@@ -248,16 +252,17 @@ pub async fn featured_handler(State(pool): State<DbPool>) -> impl IntoResponse {
 }
 
 pub async fn breaking_handler(State(pool): State<DbPool>) -> impl IntoResponse {
-    let result = sqlx::query_as!(
-        Article,
+    let result = sqlx::query_as::<_, Article>(
         r#"
         SELECT 
             id, title, slug, content, excerpt, main_image_url, video_embed_url,
-            author_id, category_id, status as "status!: String", is_featured as "is_featured!: bool",
-            is_breaking as "is_breaking!: bool", views_count as "views_count!: i64",
+            author_id, category_id, status, is_featured,
+            is_breaking, views_count,
             published_at, created_at, updated_at
         FROM articles
-        WHERE is_breaking = TRUE
+        WHERE status = 'published'
+          AND (published_at IS NULL OR published_at <= NOW())
+          AND is_breaking = TRUE
         ORDER BY published_at DESC NULLS LAST, updated_at DESC
         LIMIT 10
         "#
@@ -275,16 +280,17 @@ pub async fn breaking_handler(State(pool): State<DbPool>) -> impl IntoResponse {
 }
 
 pub async fn videos_handler(State(pool): State<DbPool>) -> impl IntoResponse {
-    let result = sqlx::query_as!(
-        Article,
+    let result = sqlx::query_as::<_, Article>(
         r#"
         SELECT 
             id, title, slug, content, excerpt, main_image_url, video_embed_url,
-            author_id, category_id, status as "status!: String", is_featured as "is_featured!: bool",
-            is_breaking as "is_breaking!: bool", views_count as "views_count!: i64",
+            author_id, category_id, status, is_featured,
+            is_breaking, views_count,
             published_at, created_at, updated_at
         FROM articles
-        WHERE video_embed_url IS NOT NULL
+        WHERE status = 'published'
+          AND (published_at IS NULL OR published_at <= NOW())
+          AND NULLIF(BTRIM(video_embed_url), '') IS NOT NULL
         ORDER BY published_at DESC NULLS LAST, created_at DESC
         LIMIT 10
         "#
@@ -306,30 +312,40 @@ pub async fn related_handler(
     State(pool): State<DbPool>,
 ) -> impl IntoResponse {
     // Obtener artículo base
-    let base = sqlx::query!(
-        r#"SELECT id, category_id FROM articles WHERE slug = $1"#,
-        slug
+    let base = sqlx::query(
+        r#"
+        SELECT id, category_id
+        FROM articles
+        WHERE slug = $1
+          AND status = 'published'
+          AND (published_at IS NULL OR published_at <= NOW())
+        "#,
     )
+    .bind(&slug)
     .fetch_optional(&pool)
     .await
     .unwrap_or(None);
 
     let base = match base {
-        Some(row) => row,
+        Some(row) => (
+            row.get::<i64, _>("id"),
+            row.get::<Option<i32>, _>("category_id"),
+        ),
         None => return (StatusCode::NOT_FOUND, "Noticia no encontrada").into_response(),
     };
 
     // Relacionados por categoría o tags compartidos
-    let result = sqlx::query_as!(
-        Article,
+    let result = sqlx::query_as::<_, Article>(
         r#"
         SELECT 
             a.id, a.title, a.slug, a.content, a.excerpt, a.main_image_url, a.video_embed_url,
-            a.author_id, a.category_id, a.status as "status!: String", a.is_featured as "is_featured!: bool",
-            a.is_breaking as "is_breaking!: bool", a.views_count as "views_count!: i64",
+            a.author_id, a.category_id, a.status, a.is_featured,
+            a.is_breaking, a.views_count,
             a.published_at, a.created_at, a.updated_at
         FROM articles a
         WHERE a.id <> $1
+          AND a.status = 'published'
+          AND (a.published_at IS NULL OR a.published_at <= NOW())
           AND (
               (a.category_id IS NOT NULL AND a.category_id = $2)
               OR EXISTS (
@@ -341,9 +357,9 @@ pub async fn related_handler(
         ORDER BY a.published_at DESC NULLS LAST, a.created_at DESC
         LIMIT 5
         "#,
-        base.id,
-        base.category_id
     )
+    .bind(base.0)
+    .bind(base.1)
     .fetch_all(&pool)
     .await;
 
@@ -592,8 +608,7 @@ pub async fn get_article_handler(
         return videos_handler(State(pool)).await.into_response();
     }
 
-    let result = sqlx::query_as!(
-        Article,
+    let result = sqlx::query_as::<_, Article>(
         r#"
          SELECT 
             id, 
@@ -605,16 +620,18 @@ pub async fn get_article_handler(
             video_embed_url,
             author_id, 
             category_id, 
-            status as "status!: String", 
-            is_featured as "is_featured!: bool", 
-            is_breaking as "is_breaking!: bool", 
-            views_count as "views_count!: i64",
+            status,
+            is_featured,
+            is_breaking,
+            views_count,
              published_at, created_at, updated_at 
          FROM articles 
          WHERE slug = $1
+           AND status = 'published'
+           AND (published_at IS NULL OR published_at <= NOW())
         "#,
-        slug
     )
+    .bind(slug)
     .fetch_optional(&pool) // fetch_optional devuelve Option<Article> (puede ser None)
     .await;
 
