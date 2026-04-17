@@ -10,7 +10,7 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use chrono::{DateTime, Utc};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use sqlx::{FromRow, Row};
 use tracing;
 use uuid::Uuid;
@@ -19,10 +19,13 @@ use uuid::Uuid;
 pub struct UpdateArticleSchema {
     pub title: Option<String>,
     pub content: Option<String>,
-    pub excerpt: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_optional_text_patch")]
+    pub excerpt: Option<Option<String>>,
     pub category_id: Option<i32>,
-    pub main_image_url: Option<String>,
-    pub video_embed_url: Option<String>,
+    #[serde(default, deserialize_with = "deserialize_optional_text_patch")]
+    pub main_image_url: Option<Option<String>>,
+    #[serde(default, deserialize_with = "deserialize_optional_text_patch")]
+    pub video_embed_url: Option<Option<String>>,
     pub status: Option<String>,
     pub is_featured: Option<bool>,
     pub is_breaking: Option<bool>,
@@ -52,6 +55,33 @@ pub struct ArticleViewsRow {
     pub views_count: i64,
     pub published_at: Option<DateTime<Utc>>,
     pub created_at: Option<DateTime<Utc>>,
+}
+
+fn deserialize_optional_text_patch<'de, D>(
+    deserializer: D,
+) -> Result<Option<Option<String>>, D::Error>
+where
+    D: Deserializer<'de>,
+{
+    Ok(Some(Option::<String>::deserialize(deserializer)?))
+}
+
+fn normalize_optional_text(value: Option<String>) -> Option<String> {
+    value.and_then(|value| {
+        let trimmed = value.trim();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed.to_string())
+        }
+    })
+}
+
+fn normalize_optional_text_patch(value: Option<Option<String>>) -> (bool, Option<String>) {
+    match value {
+        Some(value) => (true, normalize_optional_text(value)),
+        None => (false, None),
+    }
 }
 
 // GET /api/articles (Soporta ?category_id=1&search=texto)
@@ -409,14 +439,30 @@ pub async fn create_article_handler(
     Extension(claims): Extension<Claims>,
     Json(body): Json<CreateArticleSchema>,
 ) -> impl IntoResponse {
-    let mut slug = slugify(&body.title);
+    let CreateArticleSchema {
+        title,
+        content,
+        excerpt,
+        category_id,
+        main_image_url,
+        video_embed_url,
+        status,
+        is_featured,
+        is_breaking,
+        published_at,
+    } = body;
+
+    let mut slug = slugify(&title);
     if slug.is_empty() {
         slug = format!("article-{}", Uuid::new_v4().simple());
     }
 
-    let status = body.status.unwrap_or_else(|| "draft".to_string());
-    let is_featured = body.is_featured.unwrap_or(false);
-    let is_breaking = body.is_breaking.unwrap_or(false);
+    let status = status.unwrap_or_else(|| "draft".to_string());
+    let is_featured = is_featured.unwrap_or(false);
+    let is_breaking = is_breaking.unwrap_or(false);
+    let excerpt = normalize_optional_text(excerpt);
+    let main_image_url = normalize_optional_text(main_image_url);
+    let video_embed_url = normalize_optional_text(video_embed_url);
 
     let query_result = sqlx::query_as!(
         Article,
@@ -426,7 +472,7 @@ pub async fn create_article_handler(
             author_id, category_id, status, is_featured, is_breaking, published_at
         ) 
          VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) 
-         RETURNING 
+        RETURNING 
             id, 
             title, 
             slug, 
@@ -442,18 +488,18 @@ pub async fn create_article_handler(
             views_count as "views_count!: i64",
             published_at, created_at, updated_at
         "#,
-        body.title,
+        title,
         slug,
-        body.content,
-        body.excerpt,
-        body.main_image_url,
-        body.video_embed_url,
+        content,
+        excerpt,
+        main_image_url,
+        video_embed_url,
         Some(claims.user_id),
-        body.category_id,
+        category_id,
         status,
         is_featured,
         is_breaking,
-        body.published_at
+        published_at
     )
     .fetch_one(&pool)
     .await;
@@ -508,6 +554,19 @@ pub async fn update_article_handler(
     Extension(claims): Extension<Claims>,
     Json(body): Json<UpdateArticleSchema>,
 ) -> impl IntoResponse {
+    let UpdateArticleSchema {
+        title,
+        content,
+        excerpt,
+        category_id,
+        main_image_url,
+        video_embed_url,
+        status,
+        is_featured,
+        is_breaking,
+        published_at,
+    } = body;
+
     // Verificamos si existe primero para no dar falsos positivos
     let existing = match sqlx::query!("SELECT id, author_id FROM articles WHERE id = $1", id)
         .fetch_optional(&pool)
@@ -533,6 +592,10 @@ pub async fn update_article_handler(
         return (StatusCode::FORBIDDEN, "No puedes editar noticias de otros").into_response();
     }
 
+    let (excerpt_present, excerpt) = normalize_optional_text_patch(excerpt);
+    let (main_image_url_present, main_image_url) = normalize_optional_text_patch(main_image_url);
+    let (video_embed_url_present, video_embed_url) = normalize_optional_text_patch(video_embed_url);
+
     // Truco SQL: COALESCE($1, title) significa:
     // "Si el valor $1 que me envían es NULL, deja el 'title' que ya estaba en la base de datos".
     let result = sqlx::query_as!(
@@ -541,16 +604,16 @@ pub async fn update_article_handler(
          UPDATE articles SET 
             title = COALESCE($1, title),
             content = COALESCE($2, content),
-            excerpt = COALESCE($3, excerpt),
-            category_id = COALESCE($4, category_id),
-            main_image_url = COALESCE($5, main_image_url),
-            video_embed_url = COALESCE($6, video_embed_url),
-            status = COALESCE($7, status),
-            is_featured = COALESCE($8, is_featured),
-            is_breaking = COALESCE($9, is_breaking),
-            published_at = COALESCE($10, published_at),
+            excerpt = CASE WHEN $3::bool THEN $4::text ELSE excerpt END,
+            category_id = COALESCE($5, category_id),
+            main_image_url = CASE WHEN $6::bool THEN $7::text ELSE main_image_url END,
+            video_embed_url = CASE WHEN $8::bool THEN $9::text ELSE video_embed_url END,
+            status = COALESCE($10, status),
+            is_featured = COALESCE($11, is_featured),
+            is_breaking = COALESCE($12, is_breaking),
+            published_at = COALESCE($13, published_at),
             updated_at = NOW() 
-         WHERE id = $11
+         WHERE id = $14
          RETURNING 
             id, 
             title, 
@@ -567,16 +630,19 @@ pub async fn update_article_handler(
             views_count as "views_count!: i64",
             published_at, created_at, updated_at
         "#,
-        body.title,
-        body.content,
-        body.excerpt,
-        body.category_id,
-        body.main_image_url,
-        body.video_embed_url,
-        body.status,
-        body.is_featured,
-        body.is_breaking,
-        body.published_at,
+        title,
+        content,
+        excerpt_present,
+        excerpt,
+        category_id,
+        main_image_url_present,
+        main_image_url,
+        video_embed_url_present,
+        video_embed_url,
+        status,
+        is_featured,
+        is_breaking,
+        published_at,
         id
     )
     .fetch_one(&pool)
